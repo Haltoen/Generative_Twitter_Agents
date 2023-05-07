@@ -2,8 +2,10 @@ name: DBMS
 channels:
   - defaults
 dependencies:
+  - python=3.10
   - sqlite
   - pandas
   - openai
   - snakeviz
   - transformers
+  - flask
