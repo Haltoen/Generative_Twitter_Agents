@@ -11,6 +11,9 @@ class model:
         self._api_key_private = os.environ.get("CEREBRIUM_API_KEY_PRIVATE")
         self._api_key_public = os.environ.get("CEREBRIUM_API_KEY_PUBLIC")
         
+        print(self._api_key_private)
+        print(self._api_key_public)
+        
     def deploy(self):
         c = Conduit(
             'hf-gpt',
