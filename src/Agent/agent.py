@@ -159,8 +159,8 @@ class Agent:
             input_tokens = tokenizer.encode(prompt, return_tensors="pt")
 
             output_tokens = model.generate(input_tokens)
-            output_text = tokenizer.decode(output_tokens[0]) # Decode the output tokens to text
-            print("local model Bitch!!!!" , output_text)
+            text = tokenizer.decode(output_tokens[0]) # Decode the output tokens to text
+            print("local model Bitch!!!!" , text)
             
             
             # models we could use, Vicuna 13b, allpaca 13b, openassistant 13b, all on huggingface
