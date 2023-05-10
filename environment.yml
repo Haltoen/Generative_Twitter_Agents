@@ -9,4 +9,5 @@ dependencies:
   - snakeviz
   - transformers
   - flask
-  - cerebrium
+  - pip: 
+    - cerebrium
