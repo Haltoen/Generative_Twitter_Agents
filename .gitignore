@@ -1,0 +1,13 @@
+
+# Ignore directories
+/
+!/
+
+# Ignore specific folders
+folder1/
+folder2/
+
+Twitter Jan Mar.csv
+
+# Add more folders to ignore below this line
+    
