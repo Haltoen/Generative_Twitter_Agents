@@ -8,13 +8,15 @@ class model:
     def __init__(self, model_name, max_tokens):
         self._model_name = model_name    
         self._max_tokens = max_tokens
-        self._api_key_private = os.environ.get("CEREBRIUM_API_KEY_PRIVATE")
+        self._api_key_private = os.environ.get("CEREBRIUM_API_KEY_Private")
         self._api_key_public = os.environ.get("CEREBRIUM_API_KEY_PUBLIC")
         
-    def deploy(self):
+        print(self._api_key_private)
+        print(self._api_key_public)
+    def deploy_llm(self):
         c = Conduit(
             'hf-gpt',
-            f'<{self._api_key_private}>',
+            self._api_key_private,
             [
                 (model_type.HUGGINGFACE_PIPELINE, {"task": "text-generation", "model": "EleutherAI/gpt-neo-125M", "max_new_tokens": 100}),
             ],
@@ -46,5 +48,5 @@ class model:
             
 
 gpt = model("gpt", 100)
-gpt.deploy()
+gpt.deploy.llm()
 
