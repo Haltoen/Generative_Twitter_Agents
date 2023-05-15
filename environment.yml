@@ -1,13 +1,15 @@
 name: DBMS
 channels:
   - defaults
+  - pytorch
 dependencies:
   - python=3.10
+  - pip
   - sqlite
   - pandas
   - openai
-  - snakeviz
-  - transformers
   - flask
+  - faiss-cpu
   - pip: 
     - cerebrium
+    - cohere

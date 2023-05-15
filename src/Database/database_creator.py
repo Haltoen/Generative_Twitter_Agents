@@ -1,7 +1,11 @@
 import sqlite3 
 import pandas as pd
 import os
-
+from typing import List, Tuple
+from utils.functions import convert_to_BLOB, get_date, list_to_string
+import csv
+import base64
+import ast
 class DB:
     def __init__(self, name, db_path):
         self._name = name
@@ -12,9 +16,12 @@ class DB:
             print(f"Database '{self._name}' already exists.")
         else:
             print(f"Building Database from csv")
-
             df = pd.read_csv(csv_path)
-
+            print("type df fromk csv", type(df["content_embedding"][0]))
+            
+            df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x)) ## not ideal but csv files when opened have bytes as strings, this is fucking slow
+            df['date'] = df['date'].apply(lambda x: get_date(x))  
+            print("type df fromk csv after intervention", type(df["content_embedding"][0]))  
             conn = sqlite3.connect(self._db_path)
             df.to_sql(table_name, conn, if_exists='replace', index=False)
             
@@ -40,8 +47,7 @@ class DB:
         column_names = [column[1] for column in columns]
         column_count = len(column_names)
 
-        print(f"Column names: {column_names}")
-        print(f"Number of columns: {column_count}")
+        return column_names, column_count
         
     def query(self, query, params=None):
         '''Used for general queries'''
@@ -65,15 +71,15 @@ class DB:
     
     def insert_subtweet(self, tuple):
         query = """
-        INSERT INTO Subtweet (content, username, like_count, retweet_count, tweet_id)
-        VALUES (?, ?, ?, ?, ?);
+        INSERT INTO Subtweet (content,content_embedding, username, like_count, retweet_count, tweet_id, date)
+        VALUES (?, ?, ?, ?, ?, ?, ?);
         """
         self.query(query, tuple)
         
     def insert_tweet(self, tuple):
         query = """
-        INSERT INTO Tweet (content, username, like_count, retweet_count)
-        VALUES (?, ?, ?, ?);
+        INSERT INTO Tweet (content,content_embedding, username, like_count, retweet_count, date)
+        VALUES (?, ?,?, ?, ?, ?);
         """
         self.query(query, tuple)
         
@@ -92,7 +98,14 @@ class DB:
         WHERE id = {id};
         """
         self.query(query)
-        
+    
+    def insert_follow(self, tuple):
+        query = """
+        INSERT INTO Follow (follower, followee)
+        VALUES (?, ?);
+        """
+        self.query(query, tuple)    
+    
     def drop_row(self, table_name, row_id):
         query = f"""
         DELETE FROM {table_name}
@@ -101,13 +114,14 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name, csv_path = 'src\Database\Twitter_Jan_Mar.csv' ):
+    def __init__(self, name, csv_path = 'src\Database\embedded_dataset_small.csv' ):
         self._db_path = f"src\Database\{name}.sqlite"
         super().__init__(name, self._db_path)
         self.csv_to_db(csv_path, "initial_data")
         self.init_twitter_db()
     #should not be called by user
     def init_twitter_db(self):
+        
         # modifying the csv file data and making id self incrementing        
         if not self.table_exists("Tweet"):
                 
@@ -115,16 +129,18 @@ class Twitter_DB(DB):
             CREATE TABLE Tweet (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 content TEXT,
+                content_embedding BLOB,
                 username TEXT,
                 like_count INTEGER,
-                retweet_count INTEGER
+                retweet_count INTEGER,
+                date TEXT
             );
             """
             self.query(query)
 
             query1 = """
-            INSERT INTO Tweet (content, username, like_count, retweet_count)
-            SELECT content, username, like_count, retweet_count
+            INSERT INTO Tweet (content, content_embedding, username, like_count, retweet_count, date)
+            SELECT content, content_embedding, username, like_count, retweet_count, date
             FROM initial_data;
             """
             self.query(query1)
@@ -134,9 +150,11 @@ class Twitter_DB(DB):
             CREATE TABLE Subtweet (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 content TEXT,
+                content_embedding BLOB,
                 username TEXT,
                 like_count INTEGER,
                 retweet_count INTEGER,
+                date TEXT,
                 tweet_id INTEGER,
                 FOREIGN KEY (tweet_id) REFERENCES Tweet (id)
             );
@@ -144,17 +162,28 @@ class Twitter_DB(DB):
             self.query(query2)
             self.query("DROP TABLE initial_data")
         
-    def get_feed(self): # not finished
-        tweet_query = """
-        SELECT * FROM Tweet
-        ORDER BY id DESC
-        LIMIT 2;        
-        """
-        subtweet_query = """
-        SELECT * FROM Subtweet
-        ORDER BY id DESC
-        LIMIT 1;
-        """
+        if not self.table_exists("Follow"):
+            query3 = """
+            CREATE TABLE Follow (
+                follower TEXT,
+                followee TEXT,
+                FOREIGN KEY (follower) REFERENCES Tweet (username),
+                FOREIGN KEY (followee) REFERENCES Tweet (username)
+            );
+            """
+            self.query(query3)   
         
-        return [("Tweet", tweet) for tweet in self.query(tweet_query)] + [("Subtweet", subtweet) for subtweet in self.query(subtweet_query)]
-    
+    def get_feed(self)-> List[Tuple] : # not finished
+                
+        tweet_query = f"""
+        SELECT content, username, like_count, retweet_count, date FROM Tweet
+        ORDER BY id DESC
+        LIMIT {10};        
+        """
+        subtweet_query = f"""
+        SELECT content, username, like_count, retweet_count, date FROM Subtweet
+        ORDER BY id DESC
+        LIMIT {10};
+        """        
+        lst = [("Tweet", tweet) for tweet in self.query(tweet_query)] + [("Subtweet", subtweet) for subtweet in self.query(subtweet_query)]
+        return lst
