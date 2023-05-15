@@ -4,7 +4,7 @@ import numpy as np
 import re
 import cohere
 import time 
-import base64
+import os
 
 def list_to_string(inp: List[Tuple[str,str]]) -> str:
     return "\n".join([f"{pred}{elm}" for pred,elm in inp])
@@ -14,7 +14,7 @@ def convert_to_BLOB(embedding):
     return out.tobytes()
 
 def embed(text: List[str]):
-    co = cohere.Client('1RQu8BaqDN4cnMp76Bs7U8cyaImuEnxOIPWZmLmA')
+    co = cohere.Client(os.getenv("COHERE_API_KEY"))
     time.sleep((100/60) + 0.01)
     response = co.embed(
     texts=text,

@@ -11,3 +11,11 @@ Twitter Jan Mar.csv
 
 # Add more folders to ignore below this line
     
+*.sqlite
+*.sqlite3
+*.db
+*.csv
+*.cpython
+*.pyc
+*.pyo
+*.json
