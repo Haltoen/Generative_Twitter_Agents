@@ -19,3 +19,5 @@ Twitter Jan Mar.csv
 *.pyc
 *.pyo
 *.json
+*.prof
+*.log

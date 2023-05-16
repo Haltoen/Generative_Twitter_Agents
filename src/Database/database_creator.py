@@ -2,22 +2,25 @@ import sqlite3
 import pandas as pd
 import os
 from typing import List, Tuple
-from utils.functions import convert_to_BLOB, get_date, list_to_string
-import csv
-import base64
+from utils.functions import convert_to_BLOB, get_date, list_to_string, profile
 import ast
+
+
 class DB:
     def __init__(self, name, db_path):
         self._name = name
         self._db_path = db_path
 
+    @profile
     def csv_to_db(self, csv_path, table_name):
         if os.path.exists(self._db_path):
             print(f"Database '{self._name}' already exists.")
         else:
             print(f"Building Database from csv")
             df = pd.read_csv(csv_path)
-            print("type df fromk csv", type(df["content_embedding"][0]))
+            print(df.head())
+            print("content_embedding col type" , type(df["content_embedding"][0]))
+            
             
             df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x)) ## not ideal but csv files when opened have bytes as strings, this is fucking slow
             df['date'] = df['date'].apply(lambda x: get_date(x))  
@@ -27,7 +30,8 @@ class DB:
             
             conn.close()
             print(f"CSV data has been imported into the '{table_name}' table in '{self._db_path}'.")
-            
+    
+    @profile        
     def build_db(self):
         if os.path.exists(self._db_path):
             print(f"Database '{self._name}' already exists.")
@@ -36,6 +40,7 @@ class DB:
             conn.close()
 
     
+    @profile
     def view_columns(self, table_name):
         conn = sqlite3.connect(self._db_path)
         cursor = conn.cursor()
@@ -48,7 +53,8 @@ class DB:
         column_count = len(column_names)
 
         return column_names, column_count
-        
+    
+    @profile    
     def query(self, query, params=None):
         '''Used for general queries'''
         conn = sqlite3.connect(self._db_path)
@@ -65,47 +71,12 @@ class DB:
         conn.close()
         return result
     
+    @profile
     def table_exists(self, table_name):
         result = self.query(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
-        return len(result) > 0
+        return len(result) > 0 
     
-    def insert_subtweet(self, tuple):
-        query = """
-        INSERT INTO Subtweet (content,content_embedding, username, like_count, retweet_count, tweet_id, date)
-        VALUES (?, ?, ?, ?, ?, ?, ?);
-        """
-        self.query(query, tuple)
-        
-    def insert_tweet(self, tuple):
-        query = """
-        INSERT INTO Tweet (content,content_embedding, username, like_count, retweet_count, date)
-        VALUES (?, ?,?, ?, ?, ?);
-        """
-        self.query(query, tuple)
-        
-    def increment_like_count(self, table_name, id):
-        query = f"""
-        UPDATE {table_name}
-        SET like_count = like_count + 1
-        WHERE id = {id};
-        """
-        self.query(query)
-    
-    def increment_retweet_count(self, table_name, id):
-        query = f"""
-        UPDATE {table_name}
-        SET retweet_count = retweet_count + 1
-        WHERE id = {id};
-        """
-        self.query(query)
-    
-    def insert_follow(self, tuple):
-        query = """
-        INSERT INTO Follow (follower, followee)
-        VALUES (?, ?);
-        """
-        self.query(query, tuple)    
-    
+    @profile
     def drop_row(self, table_name, row_id):
         query = f"""
         DELETE FROM {table_name}
@@ -114,12 +85,13 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name, csv_path = 'src\Database\embedded_dataset_small.csv' ):
+    def __init__(self, name, csv_path = 'src\Database\mini_embedded_dataset.csv' ):
         self._db_path = f"src\Database\{name}.sqlite"
         super().__init__(name, self._db_path)
-        self.csv_to_db(csv_path, "initial_data")
+        self.csv_to_db(csv_path, "initial_data") # possibly not good, bc if an erroneous db is created we wont know
         self.init_twitter_db()
-    #should not be called by user
+    
+    @profile#should not be called by user
     def init_twitter_db(self):
         
         # modifying the csv file data and making id self incrementing        
@@ -148,15 +120,10 @@ class Twitter_DB(DB):
         if not self.table_exists("Subtweet"):
             query2 = """
             CREATE TABLE Subtweet (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                content TEXT,
-                content_embedding BLOB,
-                username TEXT,
-                like_count INTEGER,
-                retweet_count INTEGER,
-                date TEXT,
-                tweet_id INTEGER,
-                FOREIGN KEY (tweet_id) REFERENCES Tweet (id)
+                id_child INTEGER PRIMARY KEY,
+                id_parent INTEGER,
+                FOREIGN KEY (id_parent) REFERENCES Tweet(tweet_id),
+                FOREIGN KEY (id_child) REFERENCES Tweet(tweet_id)
             );
             """
             self.query(query2)
@@ -165,25 +132,88 @@ class Twitter_DB(DB):
         if not self.table_exists("Follow"):
             query3 = """
             CREATE TABLE Follow (
-                follower TEXT,
-                followee TEXT,
+                follower INTEGER,
+                followee INTEGER,
+                PRIMARY KEY (follower, followee)
                 FOREIGN KEY (follower) REFERENCES Tweet (username),
                 FOREIGN KEY (followee) REFERENCES Tweet (username)
             );
             """
-            self.query(query3)   
+            self.query(query3) 
+
+        if not self.table_exists("Users"): # Users = username
+            query3 = """
+            CREATE TABLE Users (
+                user_id INTEGER PRIMARY KEY,
+            );
+            """
+    
+    @profile        
+    def insert_subtweet(self, tuple, parent_id):
+        self.insert_tweet(tuple)
         
-    def get_feed(self)-> List[Tuple] : # not finished
+        query1 = """
+        SELECT MAX(id) AS max_id
+        FROM Tweet
+        """
+        
+        out = self.query(query1)
+        child_id = out[0][0]  # retunrs a list of tuples, we want the first element of the first tuple
+        
+        query2 = """
+        INSERT INTO Subtweet (id_child, id_parent)
+        VALUES (?, ?);
+        """
+        tuple_subtweet = (child_id ,parent_id)
+        
+        self.query(query2, tuple_subtweet)
+        print('subtweet inserted')
+    
+    @profile    
+    def insert_tweet(self, tuple):
+        query = """
+        INSERT INTO Tweet (content,content_embedding, username, like_count, retweet_count, date)
+        VALUES (?, ?, ?, ?, ?, ?);
+        """
+        self.query(query, tuple)
+    
+    @profile    
+    def increment_like_count(self, id):
+        query = f"""
+        UPDATE 'Tweet'
+        SET like_count = like_count + 1
+        WHERE id = {id};
+        """
+        self.query(query)
+    
+    @profile
+    def increment_retweet_count(self, id):
+        query = f"""
+        UPDATE 'Tweet'
+        SET retweet_count = retweet_count + 1
+        WHERE id = {id};
+        """
+        self.query(query)
+    
+    @profile
+    def insert_follow(self, tuple): # how do you select for some users having the same username?
+        query = """
+        INSERT INTO Follow (follower, followee)
+        VALUES (?, ?);
+        """
+        if tuple[0] == tuple[1]:
+            raise ValueError("cannot follow yourself, the tuples ellements must be different")
+        self.query(query, tuple)   
+    
+    @profile    
+    def get_feed(self)-> List[Tuple] : # delete soon
                 
         tweet_query = f"""
         SELECT content, username, like_count, retweet_count, date FROM Tweet
         ORDER BY id DESC
         LIMIT {10};        
         """
-        subtweet_query = f"""
-        SELECT content, username, like_count, retweet_count, date FROM Subtweet
-        ORDER BY id DESC
-        LIMIT {10};
-        """        
-        lst = [("Tweet", tweet) for tweet in self.query(tweet_query)] + [("Subtweet", subtweet) for subtweet in self.query(subtweet_query)]
+        lst = [("Tweet", tweet) for tweet in self.query(tweet_query)]
         return lst
+    
+

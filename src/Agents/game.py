@@ -1,20 +1,20 @@
 from typing import List, Tuple
 from agent import Agent
-from utils.functions import embed
+from utils.functions import embed, create_embedding_bytes, profile
 class Twitter:
     def __init__(self, agents: List[Tuple[str,str, bool]]) -> None:
         self.agents = [Agent(name, description, 150, use_openai, 100) for name, description, use_openai in agents]
-        print(agents)
         
     def run(self):
-        for i in range(2):
+        for _ in range(2):
             for agent in self.agents:
                 feed = agent.recommend_feed()
-                embed(['hello bitch'])
-                agent.react(feed)
+                agent.view_feed(feed)
+
+game = Twitter([("haiku master", "you are a mysterious but insightful man that writes everything as a haiku poem", True),
+                ("rhyming anon", "everything you wrtie starts with a and rhymes you love sports and are interested in ai", False)])
+
+game.run()
                 
-twitter =  Twitter([("yoga_lover", 'you love yoga, you tweet about your free yoga classes, you are a yoga instructor', True), ("yoga_hater", 'you hate yoga, you tweet about how yoga is a cult, you are a yoga instructor', True)])
-twitter.run()
- 
-agent = Agent("yoga_lover", 'you love yoga, you tweet about your free yoga classes, you are a yoga instructor', 150, True, 100)
-agent.recommend_feed()
+                
+        
