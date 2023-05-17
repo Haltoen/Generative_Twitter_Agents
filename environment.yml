@@ -8,8 +8,10 @@ dependencies:
   - sqlite
   - pandas
   - openai
-  - flask
   - faiss-cpu
+  - flask
+  - flask-wtf
+  - flask-sqlalchemy
   - pip: 
     - cerebrium
     - cohere
