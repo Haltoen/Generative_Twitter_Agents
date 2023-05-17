@@ -5,6 +5,37 @@ import re
 import cohere
 import time 
 import os
+import functools
+import cProfile
+import pathlib as pl
+import sys
+
+parent = pl.Path(__file__).parent  
+
+while parent.name != 'Generative_Twitter_Agents':
+    if parent.parent == parent: # We've reached the root directory
+        break
+    parent = parent.parent
+
+sys.path.append(str(parent))
+
+def profile(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        profiler = cProfile.Profile()
+        profiler.enable()
+        result = func(*args, **kwargs)
+        profiler.disable()
+        path = f"{parent}/profiling/"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        profiler.dump_stats(path + f"{func.__name__}.prof")
+        return result
+
+    return wrapper
+
+def token_count(text: str) -> int:
+    return len(text.split())*2    
 
 def list_to_string(inp: List[Tuple[str,str]]) -> str:
     return "\n".join([f"{pred}{elm}" for pred,elm in inp])
@@ -37,7 +68,6 @@ def create_embedding_nparray(text: str) -> np.array:
     out_lst = [np.array(embedding) for embedding in response.embeddings]
     return out_lst
 
-
 # After retrieving from SQLite
 
 def convert_bytes_to_nparray(embedding_bytes:bytes) -> np.array:
@@ -53,3 +83,4 @@ def get_date(data):
             return match.group(0)
     else: 
         return None
+
