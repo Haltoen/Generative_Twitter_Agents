@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 import os
 from typing import List, Tuple
-from utils.functions import convert_to_BLOB, get_date, list_to_string, profile
+from src.utils.functions import convert_to_BLOB, get_date, list_to_string, profile
 import ast
 
 
@@ -209,9 +209,9 @@ class Twitter_DB(DB):
     def get_feed(self)-> List[Tuple] : # delete soon
                 
         tweet_query = f"""
-        SELECT content, username, like_count, retweet_count, date FROM Tweet
+        SELECT content, content_embedding, username, like_count, retweet_count, date FROM Tweet
         ORDER BY id DESC
-        LIMIT {10};        
+        LIMIT {20};        
         """
         lst = [("Tweet", tweet) for tweet in self.query(tweet_query)]
         return lst

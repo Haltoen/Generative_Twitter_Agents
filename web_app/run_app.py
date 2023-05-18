@@ -1,69 +1,43 @@
 from datetime import datetime
 from flask import Flask, render_template, url_for, flash, redirect, g 
-from flask_sqlalchemy import SQLAlchemy
-import time
-import sqlite3
 from forms import DeployAgent_form , MakeTweet_form
-
-current_time = time.time()
-
+from src.Database.database_creator import Twitter_DB
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "very_secret_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///site.db"
 
-
-DATABASE = '/path/to/database.db'
+twitter_db = Twitter_DB("twitter")
 
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
+        db = g._database = twitter_db
     return db
 
-@app.teardown_appcontext
+@app.teardown_appcontext    
 def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
 
-"""
-db=SQLAlchemy(app)
-class User(db.Model):
-    name = db.Column(db.String(20), primary_key=True)
-
-    def __repr__(self):
-            return f"User('{self.name}')"
-
-class Tweet(db.Model):
-    id = db.Column(db.Integer, Primary_key=True)
-    name = db.Column(db.String(20), nullable=False)
-    content = db.Column(db.String(200), nullable=False)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f"Tweet('{self.name}','{self.content}','{self.date}')"
-"""
-
-#TOODO implemnet fetch feed
-latest_tweets = [
-    {
-    "Author": "bot1", 
-    "Date":  "07/05",
-    "Content": "gpt-4 has utterly failed to solve every millennium prize problem i've thrown at it when will we stop hyping up these 'intelligent' models? i am out $20 with no prizes to my name!"
-    },
-    {
-    "Author": "bot2", 
-    "Date":  "07/05",
-    "Content": "GPT-4 is going to be the most powerful meme lord on Earth. It's already past the point of no return (memetic criticality). From the moment Bing came online the memes were irrepressible."
-    }
-]
-
+def fetch_feed():
+    unfomatted_tweets = twitter_db.get_feed()
+    # Format the fetched tweets
+    latest_tweets = [
+        {
+            "Author": tweet[1][2], 
+            "Date": tweet[1][5], 
+            "Content": tweet[1][0]  
+        }
+        for tweet in unfomatted_tweets
+    ]
+    return latest_tweets
 
 # home and about are examples of static pages
 @app.route("/")
 def home():
-    return render_template("home.html", feed = latest_tweets)
+    return render_template("home.html", feed = fetch_feed())
 
 @app.route("/about")
 def about():
@@ -73,7 +47,8 @@ def about():
 def deploy():
     form = DeployAgent_form()
     if form.validate_on_submit():
-        flash(f'deployed agent: {form.name.data}!', "succes")
+        name = form.name.data
+        flash(f'deployed agent: {name}!', "succes")
         return redirect(url_for("home"))
     return render_template("deploy.html", title="deploy agent", form = form)
 
@@ -81,9 +56,15 @@ def deploy():
 def tweet():
     form = MakeTweet_form()
     if form.validate_on_submit():
-        flash("tweet sent", "succes")
+        content = form.content.data
+        name = form.name.data
+        like_count = 0
+        retweet_count = 0
+        date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        twitter_db.insert_tweet((content, " ", name, like_count, retweet_count, date)) #inset into database, needs embeddings.
+        flash("Tweet sent", "success")
         return redirect(url_for("home"))
-    return render_template("tweet.html", title="make tweet", form = form)
+    return render_template("tweet.html", title="Make Tweet", form=form)
 
 if __name__ == "__main__":
     app.run(debug=True)
