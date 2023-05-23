@@ -63,8 +63,8 @@ class Agent:
         '''prompts the agent with the text and returns the response'''        
         
         prompt = f"""{self._prompt_template} Now the task begins: {text}\n\n"""  
-        print("template size", token_count(self._prompt_template))
-        print("prompt size", token_count(prompt))
+        #print("template size", token_count(self._prompt_template))
+        #print("prompt size", token_count(prompt))
         if self._use_openai is True:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
@@ -83,6 +83,7 @@ class Agent:
             print("not implemented yet")
             
         self.parser(text)
+        print("agent answers", text)
         return text      
         
     @profile

@@ -55,5 +55,3 @@ Your feed will be a list of tweets that you can comment, like, retweet, or refle
 Tweet_(1, 'Free AI marketing and automation tools, strategies, and collaboration launching new week https://t.co/Qwti8LfBpb   #ChatGPT', 'RealProfitPros', 0, 0)
 Tweet_(2, '@MecoleHardman4 Chat GPT says it’s 15. 😂', 'AmyLouWho321', 0, 0)
 
-based on this the agents action api_call[Tweet(...)]
-

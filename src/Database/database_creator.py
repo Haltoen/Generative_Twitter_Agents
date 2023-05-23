@@ -85,7 +85,7 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name, csv_path = 'src\Database\mini_embedded_dataset.csv' ):
+    def __init__(self, name, csv_path = 'src\Database\large_embedded_dataset.csv' ):
         self._db_path = f"src\Database\{name}.sqlite"
         super().__init__(name, self._db_path)
         self.csv_to_db(csv_path, "initial_data") # possibly not good, bc if an erroneous db is created we wont know
