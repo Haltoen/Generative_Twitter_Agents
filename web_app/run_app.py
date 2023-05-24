@@ -7,7 +7,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = "very_secret_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///site.db"
 
-twitter_db = Twitter_DB("twitter")
+twitter_db = Twitter_DB("Twitter_db")
 
 def get_db():
     db = getattr(g, '_database', None)
@@ -26,9 +26,9 @@ def fetch_feed():
     # Format the fetched tweets
     latest_tweets = [
         {
-            "Author": tweet[1][2], 
-            "Date": tweet[1][5], 
-            "Content": tweet[1][0]  
+            "Author": tweet[2][2], 
+            "Date": tweet[2][5], 
+            "Content": tweet[2][0]  
         }
         for tweet in unfomatted_tweets
     ]
