@@ -11,18 +11,37 @@ sys.path.append(str(parent_dir))
 print(parent_dir)
 
 
+import time
 class Twitter:
-    def __init__(self, agents: List[Tuple[str,str, bool]]) -> None:
-        self.agents = [Agent(name, description, 150, use_openai, 0) for name, description, use_openai in agents]
-        
+    def __init__(self) -> None:
+        self.agents = []
+        self.current_agent_index = 0    
+
+
     def run(self):
-        for _ in range(10):
-            for agent in self.agents:
-                feed = agent.recommend_feed()
-                agent.view_feed(feed) 
+        while not self.paused:
+            current_agent = self.agents[self.current_agent_index]
+            feed = current_agent.recommend_feed()
+            current_agent.view_feed(feed)
+            self.current_agent_index = (self.current_agent_index + 1) % len(self.agents)
+        time.sleep(1)  # Wait for 1 second before the next iteration
 
+    def pause(self):
+        self.paused = True
 
+    def unpause(self):
+        if self.agents:
+            self.paused = False
+            self.run()
 
-agent = Agent("kanye", "you are kanye west but in a counterfactual universe where you and pete davidson are in love, you love jews. you tweet a lot about you and petes sex life", 150, True, 100)
-#agent._memory_db.get_reflections()
-b = agent._twitter_db.view_columns("Users")
+    def add_agent(agent:Agent):
+        self.agents += [agent]
+        
+
+game = Twitter([("DOnald Trump", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", True),
+               ])
+
+game.run()
+                
+                
+        
