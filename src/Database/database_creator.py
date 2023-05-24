@@ -151,7 +151,7 @@ class Twitter_DB(DB):
         if not self.table_exists("Users"): # Users = username
             query3 = """
             CREATE TABLE Users (
-                user_id, TEXT PRIMARY KEY,
+                user_id TEXT PRIMARY KEY,
             );
             """
             query4 = """
