@@ -38,12 +38,15 @@ class Twitter:
         self.agents.append(agent)
         
 
-#game = Twitter([("DOnald Trump", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", True),
 
+agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True, 100)
 
-agent = Agent("yeezus3006569", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", 100, True, 50)
+q = agent._twitter_db.query("SELECT hashtags FROM Tweet")
 
-q1 = """SELECT * FROM Users"""
-b = agent._twitter_db.query(q1)
+j = 0
+for i in q:
+    if i ==  ('#',):
+        j += 1
+print(j)
 
-print(len(b))
+#print(agent._twitter_db.query("SELECT username FROM Tweet WHERE hashtags LIKE '%#AI%'"))

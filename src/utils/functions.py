@@ -9,15 +9,25 @@ import functools
 import cProfile
 import pathlib as pl
 import sys
+import re
+
 
 parent = pl.Path(__file__).parent  
 
-while parent.name != 'Generative_Twitter_Agents':
-    if parent.parent == parent: # We've reached the root directory
-        break
-    parent = parent.parent
 
-sys.path.append(str(parent))
+def similarity_search_(n, embedding, indexer):
+    # Perform a similarity search
+    results = indexer.search(embedding, n)
+    # Print the results
+    for result in results:
+        print(result)
+
+def find_hashtags(text) -> str:
+    if not isinstance(text, str):
+        return " "
+    pattern = re.compile(r"#(\w+)")
+    hashtags = pattern.findall(text)
+    return '#'+', #'.join(hashtags)
 
 def profile(func):
     @functools.wraps(func)

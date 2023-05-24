@@ -9,37 +9,18 @@ import sqlite3
 import pandas as pd
 import os
 from typing import List, Tuple
-from utils.functions import convert_to_BLOB, get_date, list_to_string, profile
+from utils.functions import convert_to_BLOB, get_date, list_to_string, profile, find_hashtags, convert_bytes_to_nparray, embed
 import ast
-
-
+import faiss
+import numpy as np
+import random 
 class DB:
     def __init__(self, name, db_path):
         self._name = name
         self._db_path = db_path
-
-    @profile
-    def csv_to_db(self, csv_path, table_name):
-        if os.path.exists(self._db_path):
-            print(f"Database '{self._name}' already exists.")
-        else:
-            print(f"Building Database from csv")
-            df = pd.read_csv(csv_path)
-            print(df.head())
-            print("content_embedding col type" , type(df["content_embedding"][0]))
-            
-            
-            df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x)) ## not ideal but csv files when opened have bytes as strings, this is fucking slow
-            df['date'] = df['date'].apply(lambda x: get_date(x))  
-            print("type df fromk csv after intervention", type(df["content_embedding"][0]))  
-            conn = sqlite3.connect(self._db_path)
-            df.to_sql(table_name, conn, if_exists='replace', index=False)
-            
-            conn.close()
-            print(f"CSV data has been imported into the '{table_name}' table in '{self._db_path}'.")
     
     @profile        
-    def build_db(self):
+    def build_db(self)-> bool:
         if os.path.exists(self._db_path):
             print(f"Database '{self._name}' already exists.")
         else:
@@ -91,14 +72,45 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name, csv_path = 'src\Database\mini_embedded_dataset.csv' ):
+    def __init__(self, name, from_scratch = False , csv_path = 'src\Database\large_embedded_dataset.csv'):
         self._db_path = f"src\Database\{name}.sqlite"
+        self._from_scratch = from_scratch
+        self._index = None
         super().__init__(name, self._db_path)
-        self.csv_to_db(csv_path, "initial_data") # possibly not good, bc if an erroneous db is created we wont know
-        self.init_twitter_db()
-    
+       
+        if not from_scratch:
+            self.twitter_csv_to_db(csv_path, "initial_data") # possibly not good, bc if an erroneous db is created we wont know
+        else: 
+            self.build_db()
+            self.build_tables()
+        
+    @profile
+    def twitter_csv_to_db(self, csv_path, table_name):
+        
+        if os.path.exists(self._db_path):
+            print(f"Database '{self._name}' already exists.")
+        else:
+            print(f"Building Database from csv")
+            df = pd.read_csv(csv_path)           
+            
+            df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x)) ## not ideal but csv files when opened have bytes as strings, this is fucking slow
+            df['date'] = df['date'].apply(lambda x: get_date(x))  
+            df['content'] = df['content'].apply(lambda x: str(x))
+            df['hashtags'] = df['content'].apply(lambda x: find_hashtags(x))
+            
+            df.to_csv('src\Database\large_embedded_dataset_hashtags.csv')
+            
+            #print("type df fromk csv after intervention", type(df["content_embedding"][0]))  
+            conn = sqlite3.connect(self._db_path)
+            df.to_sql(table_name, conn, if_exists='replace', index=False)
+            
+            self.build_tables()
+            
+            conn.close()
+            print(f"CSV data has been imported into the '{table_name}' table in '{self._db_path}'.")
+                    
     @profile#should not be called by user
-    def init_twitter_db(self):
+    def build_tables(self):
         
         # modifying the csv file data and making id self incrementing        
         if not self.table_exists("Tweet"):
@@ -109,19 +121,21 @@ class Twitter_DB(DB):
                 content TEXT,
                 content_embedding BLOB,
                 username TEXT,
+                hashtags TEXT,
                 like_count INTEGER,
                 retweet_count INTEGER,
                 date TEXT
             );
             """
             self.query(query)
-
-            query1 = """
-            INSERT INTO Tweet (content, content_embedding, username, like_count, retweet_count, date)
-            SELECT content, content_embedding, username, like_count, retweet_count, date
-            FROM initial_data;
-            """
-            self.query(query1)
+            
+            if not self._from_scratch: 
+                query1 = """
+                INSERT INTO Tweet (content, content_embedding, username, hashtags, like_count, retweet_count, date)
+                SELECT content, content_embedding, username, hashtags, like_count, retweet_count, date
+                FROM initial_data;
+                """
+                self.query(query1)
 
         if not self.table_exists("Subtweet"):
             query2 = """
@@ -163,7 +177,6 @@ class Twitter_DB(DB):
             self.query(query4)
 
 
-    
     @profile        
     def insert_subtweet(self, tuple, parent_id):
         self.insert_tweet(tuple)
@@ -188,7 +201,7 @@ class Twitter_DB(DB):
     @profile    
     def insert_tweet(self, tuple):
         query1 = """
-        INSERT INTO Tweet (content,content_embedding, username, like_count, retweet_count, date)
+        INSERT INTO Tweet (content,content_embedding, username, hashtags, like_count, retweet_count, date)
         VALUES (?, ?, ?, ?, ?, ?);
         """
         self.query(query1, tuple)        
@@ -224,17 +237,65 @@ class Twitter_DB(DB):
     @profile    
     def get_feed(self, n_samples)-> List[Tuple] : # returns a list of tuples, used by frontend
         tweet_query = f"""
-        SELECT content, username, like_count, retweet_count, date FROM Tweet
+        SELECT content, username, hashtags, like_count, retweet_count, date FROM Tweet
         ORDER BY id DESC
         LIMIT {n_samples};        
         """
         lst = [("Tweet", tweet) for tweet in self.query(tweet_query)]
         return lst
     
-    @profile 
-    def search(str: str, n_samples: int) -> List[Tuple]:
+    @profile
+    def similarity_search(self, xq, n_samples, retrain = False):        
+        k = n_samples # number of tweets to search through
+        d = 1024 # dimnesion of embeddings
+        nlist = 128 # number of clusters
         
-        #hasttag_search = ..
-        # @ search = ..
-        # normal search = ..
-        pass
+        tweets = self.query("SELECT id, content_embedding FROM Tweet")
+        tweet_embeddings = [convert_bytes_to_nparray(embedding) for _ , embedding in tweets]   
+        tweet_ids = [id for id, _ in tweets]
+        embeddings = np.array(tweet_embeddings)
+        wb = np.stack(embeddings)
+        
+        d = 1024 # dimnesion of embeddings
+        nlist = 128 # number of clusters
+        
+        if self._index is None or retrain: # if model already trained
+            quantizer = faiss.IndexFlatIP(d)
+            self._index = faiss.IndexIVFFlat(quantizer, d, nlist)
+            self._index.train(wb)           
+            
+        self._index.add(wb)
+        self._index.nprobe = 4
+        print(type(xq), type(xq[0]), type(k))
+        D, I = self._index.search(xq, k)
+        
+        recommended_tweet_ids = [tweet_ids[i] for i in I[0]] 
+        tweets = self.query(f"SELECT content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
+        return tweets
+        
+    
+    @profile 
+    def search_db(self, search: str, n_samples: int) -> List[Tuple]:
+        if search.startswith("#"):
+            query = f"""
+            SELECT content, like_count, retweet_count,date FROM Tweet WHERE hashtags LIKE '%{search}%'
+            """
+            out = self.query(query)
+            return out[:n_samples]
+        if search.startswith("@"):
+            query = f"""
+            SELECT content, like_count, retweet_count,date FROM Tweet WHERE username LIKE '%{search.lstrip('@')}%'
+            """
+            out = self.query(query)
+            return out[:n_samples]
+                    
+        if search.startswith("similar_to:"):
+            search = search.lstrip("similar_to:")
+            xq = embed([search])
+            xq = np.array([xq.embeddings[0]])
+            out = self.similarity_search(xq, n_samples)
+            return out
+            
+            
+
+        

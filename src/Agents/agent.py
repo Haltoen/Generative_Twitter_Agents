@@ -17,7 +17,7 @@ parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
 from Agents.Agent_memory import Memory
 from Database.database_creator import Twitter_DB
-from utils.functions import list_to_string, create_embedding_bytes, create_embedding_nparray, convert_bytes_to_nparray, profile, token_count
+from utils.functions import list_to_string, create_embedding_bytes, create_embedding_nparray, convert_bytes_to_nparray, profile, token_count, find_hashtags
 
 class Agent:
     '''the twitter agent'''
@@ -48,7 +48,6 @@ class Agent:
         print("instruction size", self._instruction_share, "feed size", self._feed_share, "memory size", self._memory_share)
         
         self.add_user_to_db()
-        
     
     @profile
     def add_user_to_db(self):
@@ -127,15 +126,17 @@ class Agent:
         if match1:
             text = match1.group(1)
             text_embedding = create_embedding_bytes(text) 
-            tuple = (text, text_embedding, self._name, 0, 0, date)
+            hashtags = find_hashtags(text) 
+            tuple = (text, text_embedding, self._name, hashtags, 0, 0, date)
             self._twitter_db.insert_tweet(tuple)
             print(f"Tweet match found and succesfully inserted, {tuple} ")
         if match2:
             text = match2.group(1)
+            hashtags = find_hashtags(text) 
             text_embedding = create_embedding_bytes(text) 
             parent_tweet_id = match2.group(2)
             print(f"Comment match found: {text}, {parent_tweet_id}")
-            self._twitter_db.insert_subtweet((text, text_embedding, self._name, 0, 0, date) , parent_tweet_id)
+            self._twitter_db.insert_subtweet((text, text_embedding, self._name, hashtags, 0, 0, date) , parent_tweet_id)
         if match3:
             tweet_id = match3.group(1)
             print(f"Like match found: {tweet_id}")
@@ -215,7 +216,6 @@ class Agent:
         subtweet_lengths = self._memory_db.query("SELECT length FROM Memory_Subtweet ORDER BY id DESC")
         reflection_lengths = self._memory_db.query("SELECT length FROM Reflections ORDER BY id DESC")
 
-
         tweet_len = sum([length[0] for length in tweet_lengths])
         subtweet_len = sum([length[0] for length in subtweet_lengths])
         reflection_len = sum([length[0] for length in reflection_lengths])
@@ -293,30 +293,7 @@ class Agent:
         query_emb = create_embedding_nparray(self._description + "".join(prev_actions) + prev_reflections) # might not be scalable
         xq = np.array(query_emb)
                 
-        tweets = self._twitter_db.query("SELECT id, content_embedding FROM Tweet")
-        tweet_embeddings = [convert_bytes_to_nparray(embedding) for id, embedding in tweets]   
-        tweet_ids = [id for id, _ in tweets]
-        embeddings = np.array(tweet_embeddings)
-        wb = np.stack(embeddings)
-        
-        
-        d = 1024 # dimnesion of embeddings
-        
-        nlist = 128 # number of clusters
-        
-        if self._index is None:     # if model already trained
-            quantizer = faiss.IndexFlatIP(d)
-            self._index = faiss.IndexIVFFlat(quantizer, d, nlist)
-            self._index.train(wb)
-        
-        
-        self._index.add(wb)
-        self._index.nprobe = 4
-        D, I = self._index.search(xq, k)
-        
-        random.shuffle(I)
-        recommended_tweet_ids = [tweet_ids[i] for i in I[0]][:15] # pick 15 random tweets from the top 30 most similar tweets
-        tweets = self._twitter_db.query(f"SELECT content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
+        tweets = self._twitter_db.similarity_search(xq, 30)
         
         upper = self._feed_share * self._context_size + 100 # 100 buffer
         total = 0     
