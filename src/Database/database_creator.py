@@ -1,8 +1,15 @@
+import sys
+from pathlib import Path
+
+parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
+sys.path.append(str(parent_dir))
+print("path", str(parent_dir))
+
 import sqlite3 
 import pandas as pd
 import os
 from typing import List, Tuple
-from src.utils.functions import convert_to_BLOB, get_date, list_to_string, profile
+from utils.functions import convert_to_BLOB, get_date, list_to_string, profile
 import ast
 
 
@@ -144,9 +151,16 @@ class Twitter_DB(DB):
         if not self.table_exists("Users"): # Users = username
             query3 = """
             CREATE TABLE Users (
-                user_id INTEGER PRIMARY KEY,
+                user_id,  INTEGER PRIMARY KEY,
             );
             """
+            query4 = """
+            INSERT INTO Users (user_id)
+            SELECT DISTINCT username
+            FROM Tweet;
+            """
+            self.query(query4)
+
     
     @profile        
     def insert_subtweet(self, tuple, parent_id):
@@ -171,11 +185,11 @@ class Twitter_DB(DB):
     
     @profile    
     def insert_tweet(self, tuple):
-        query = """
+        query1 = """
         INSERT INTO Tweet (content,content_embedding, username, like_count, retweet_count, date)
         VALUES (?, ?, ?, ?, ?, ?);
         """
-        self.query(query, tuple)
+        self.query(query1, tuple)        
     
     @profile    
     def increment_like_count(self, id):
@@ -206,14 +220,19 @@ class Twitter_DB(DB):
         self.query(query, tuple)   
     
     @profile    
-    def get_feed(self)-> List[Tuple] : # delete soon
-                
+    def get_feed(self, n_samples)-> List[Tuple] : # returns a list of tuples, used by frontend
         tweet_query = f"""
-        SELECT content, content_embedding, username, like_count, retweet_count, date FROM Tweet
+        SELECT content, username, like_count, retweet_count, date FROM Tweet
         ORDER BY id DESC
-        LIMIT {20};        
+        LIMIT {n_samples};        
         """
         lst = [("Tweet", tweet) for tweet in self.query(tweet_query)]
         return lst
     
-
+    @profile 
+    def search(str: str, n_samples: int) -> List[Tuple]:
+        
+        #hasttag_search = ..
+        # @ search = ..
+        # normal search = ..
+        pass

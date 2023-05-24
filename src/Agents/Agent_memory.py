@@ -92,12 +92,12 @@ class Memory(DB):
         for table_name, tuple in feed:
             if table_name == "Tweet":               
                 self.insert_tweet_memory(tuple) #id is autoincremented
-                print("inserted tweet successfully")
+                #print("inserted tweet successfully")
             elif table_name == "Subtweet":                
                 self.insert_subtweet_memory(tuple) # id is autoincremented
-                print("inserted subtweet successfully")
+                #print("inserted subtweet successfully")
             elif table_name == "Reflection":
-                print("inserting in reflection:", tuple)
+                #print("inserting in reflection:", tuple)
                 text, keywords, = tuple
                 embed = create_embedding_bytes([text+keywords]) # possibly error here
                 self.insert_Reflection((text, keywords, embed))
@@ -105,7 +105,7 @@ class Memory(DB):
                 raise Exception("Invalid table name")
          
     @profile            
-    def get_memory(self) -> str:    
+    def get_memory_reflections_tweets(self) -> str:    
         '''returns the memory of the agent as a string everything except the embedding'''
         reflections = self.query("SELECT Reflection, Keywords FROM Reflections")
         subtweet = self.query("SELECT content, username, like_count, retweet_count, date FROM Memory_Subtweet") # every column in agent memory
@@ -113,6 +113,14 @@ class Memory(DB):
         
         text = list_to_string(self.merge_memory_stream(subtweet, tweet, reflections))
         return text
+    
+    @profile
+    def get_reflections(self) -> str:
+        '''returns the reflections of the agent as a string'''
+        reflections = self.query("SELECT Reflection, Keywords FROM Reflections")
+        text = [('Reflection', reflection) for reflection in reflections]
+        return text
+    
 
     @profile
     def merge_memory_stream(self, oldest_tweets : list, oldest_subtweets : list, oldest_reflections : list) -> List:

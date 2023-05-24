@@ -1,6 +1,16 @@
 from typing import List, Tuple
 from agent import Agent
 from utils.functions import embed, create_embedding_bytes, profile
+import time 
+import sys
+from pathlib import Path
+
+parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
+sys.path.append(str(parent_dir))
+
+print(parent_dir)
+
+
 import time
 class Twitter:
     def __init__(self) -> None:

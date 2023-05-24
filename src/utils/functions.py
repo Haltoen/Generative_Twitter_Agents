@@ -35,7 +35,7 @@ def profile(func):
     return wrapper
 
 def token_count(text: str) -> int:
-    return len(text.split())*2    
+    return len(text.split())*3    
 
 def list_to_string(inp: List[Tuple[str,str]]) -> str:
     return "\n".join([f"{pred}{elm}" for pred,elm in inp])

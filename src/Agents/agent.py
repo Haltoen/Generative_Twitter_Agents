@@ -9,6 +9,7 @@ import pathlib as pl
 import faiss
 import numpy as np
 import time 
+import random
 
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
@@ -43,6 +44,12 @@ class Agent:
         self._memory_share = 1-self._instruction_share-self._feed_share 
         
         print("instruction size", self._instruction_share, "feed size", self._feed_share, "memory size", self._memory_share)
+        
+        # insert into user table
+        
+        query = f"""INSERT INTO Users {self._name})"""
+        self._twitter_db.query(query)
+      
         
 
     @profile
@@ -155,6 +162,14 @@ class Agent:
             if (1-self._instruction_share)*self._context_size  > token_count(text) : # 1 token per prompt
                 "agent reflecting"
                 self.prompt(text)
+                
+                
+    @profile
+    def get_reflection(self):
+        '''gets the reflection from the memory and returns it'''
+        print("getting reflection")
+        reflection = self._memory_db.get_reflection()
+        return reflection
                     
     @profile
     def view_feed(self, lst_feed: List[tuple]):
@@ -169,16 +184,15 @@ class Agent:
             raise ValueError("Feed is too long, please shorten it")
         
         self.memory_manager()            
-        memory = self._memory_db.get_memory()
+        memory = self._memory_db.get_memory_reflections_tweets()
                 
         text = f"""here are short term memories of twitter interaction: {memory} \n\n now you view your feed and react to what you have seen and experienced. Feed: {feed}. \n\n""" 
         
         print("length of feed: ", token_count(feed))
-        print("length of memory: ", token_count(text))
+        print("length of memory: ", token_count(memory))
+        print(" length of prompt: ", token_count(text))
         
         out = [(label, (*tuple, token_count(tuple[0]))) for label, tuple in lst_feed]
-        
-        print("out tokens before db dump should equal feed size: ", sum([tuple[-1] for label, tuple in out]))
         
         self.prompt(text)
         
@@ -190,16 +204,18 @@ class Agent:
         
         print("managing memory\n\n")
         
-        tweet_lengths = self._memory_db.query("SELECT length FROM Memory_Tweet")
-        subtweet_lengths = self._memory_db.query("SELECT length FROM Memory_Subtweet")
-        reflection_lengths = self._memory_db.query("SELECT length FROM Reflections")
+        tweet_lengths = self._memory_db.query("SELECT length FROM Memory_Tweet ORDER BY id DESC")
+        subtweet_lengths = self._memory_db.query("SELECT length FROM Memory_Subtweet ORDER BY id DESC")
+        reflection_lengths = self._memory_db.query("SELECT length FROM Reflections ORDER BY id DESC")
+
+
         tweet_len = sum([length[0] for length in tweet_lengths])
         subtweet_len = sum([length[0] for length in subtweet_lengths])
         reflection_len = sum([length[0] for length in reflection_lengths])
         
-        memory_tokens = tweet_len + subtweet_len + reflection_len          
+        memory_tokens = tweet_len + subtweet_len + reflection_len + 150 # 500 buffere
 
-        upper_bound = self._context_size * self._memory_share
+        upper_bound = self._context_size * self._memory_share 
 
         print("tokens in memory", memory_tokens)
         print("upper bound", upper_bound)
@@ -215,9 +231,9 @@ class Agent:
             desired_reflection_len = int(upper_bound * reflection_proportion)
 
             # Determine how many rows to remove for each table, if any
-            tweets_to_remove = max(0, tweet_len - desired_tweet_len)
-            subtweets_to_remove = max(0, subtweet_len - desired_subtweet_len)
-            reflections_to_remove = max(0, reflection_len - desired_reflection_len)
+            tweets_to_remove = int(max(0, tweet_len - desired_tweet_len))
+            subtweets_to_remove = int(max(0, subtweet_len - desired_subtweet_len))
+            reflections_to_remove = int(max(0, reflection_len - desired_reflection_len))
 
             # Take the oldest tweets, subtweets, and reflections to hit target size for each
             oldest_tweets = self._memory_db.calculate_rows_to_remove("Memory_Tweet", tweets_to_remove)
@@ -243,8 +259,7 @@ class Agent:
             self._memory_db.remove_rows('Memory_Subtweet', subtweets_to_remove)
             self._memory_db.remove_rows('Reflections', reflections_to_remove)
             
-            
-            print(f"Memory manager finished removed {tweets_to_remove} tweets, {subtweets_to_remove} subtweets, {reflections_to_remove} reflections", memory_tokens)
+            print(f"Memory manager finished removed {tweets_to_remove} tweets, {subtweets_to_remove} subtweets, {reflections_to_remove} reflections, totaling {memory_tokens-upper_bound} tokens, should be below upper bound {upper_bound} ")
     
     
     @profile
@@ -256,12 +271,21 @@ class Agent:
     def recommend_feed(self): 
         '''creates customized feed for agent based on who they follow, similarity search, and time'''
         t0 = time.time()   
-        k = 30 # number of tweets to search through
-        prev_actions = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'")                  
-        query_emb = create_embedding_nparray(self._description + "".join(prev_actions)) # might not be scalable
+        k = 50 # number of tweets to search through
+        prev_actions = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'") 
+        prev_reflections = list_to_string(self._memory_db.get_reflections())
+        
+        prompt = self._description + "".join(prev_actions) + prev_reflections
+        
+        
+        #stupid check
+        prompt_len = token_count(prompt)
+        if prompt_len > 4000:
+            prompt = " ".join(prompt.split()[:4000/2]) # 2 tokens per word
+                
+        query_emb = create_embedding_nparray(self._description + "".join(prev_actions) + prev_reflections) # might not be scalable
         xq = np.array(query_emb)
-        
-        
+                
         tweets = self._twitter_db.query("SELECT id, content_embedding FROM Tweet")
         tweet_embeddings = [convert_bytes_to_nparray(embedding) for id, embedding in tweets]   
         tweet_ids = [id for id, _ in tweets]
@@ -273,34 +297,40 @@ class Agent:
         
         nlist = 128 # number of clusters
         
-        #if self._index is None:     
-        quantizer = faiss.IndexFlatIP(d)
-        index = faiss.IndexIVFFlat(quantizer, d, nlist)
-        index.train(wb)
-        index.add(wb)
-        
-        index.nprobe = 4
-        D, I = index.search(xq, k)
+        if self._index is None:     # if model already trained
+            quantizer = faiss.IndexFlatIP(d)
+            self._index = faiss.IndexIVFFlat(quantizer, d, nlist)
+            self._index.train(wb)
         
         
-        recommended_tweet_ids = [tweet_ids[i] for i in I[0]]  # Assuming you are querying with only one vector
+        self._index.add(wb)
+        self._index.nprobe = 4
+        D, I = self._index.search(xq, k)
+        
+        random.shuffle(I)
+        recommended_tweet_ids = [tweet_ids[i] for i in I[0]][:15] # pick 15 random tweets from the top 30 most similar tweets
         tweets = self._twitter_db.query(f"SELECT content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
         
-        upper = self._feed_share * self._context_size   
+        upper = self._feed_share * self._context_size + 100 # 100 buffer
         total = 0     
-        recommended_tweets = []      
         
-        for tweet in tweets:
+        feed = self._twitter_db.get_feed(15)
+        random.shuffle(feed)
+        
+        recommended_tweets = []      
+        for x, y in zip(feed, tweets):
             if total >= upper:
                 break
-            total += token_count(tweet[0]) # tweet[0] is the content of the tweet
-            recommended_tweets.append(tweet)
-            
+            total += token_count(x[1][0]) # tweet[0][0] is the content of the tweet
+            total += token_count(y[0]) # tweet[0] is the content of the tweet
+            recommended_tweets.append(x)
+            recommended_tweets.append(("Tweet", (y)))
+                    
         print("time to recommend:" ,time.time() - t0)   
         print("len of recommended tweets", len(recommended_tweets))
-        print("total tokens in recommended tweets", sum([token_count(tweet[0]) for tweet in recommended_tweets]))
+        print("total tokens in recommended tweets", sum([token_count(tweet[1][0]) for tweet in recommended_tweets]))
              
-        return [("Tweet", (tweet)) for tweet in recommended_tweets]
+        return recommended_tweets
         
         
     
