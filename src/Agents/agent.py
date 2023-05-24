@@ -47,8 +47,9 @@ class Agent:
         
         # insert into user table
         
-        query = f"""INSERT INTO Users {self._name})"""
+        query = f"INSERT INTO Users (user_id) VALUES ('{self._name}')"
         self._twitter_db.query(query)
+
       
         
 
