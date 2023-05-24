@@ -41,8 +41,9 @@ class Twitter:
 #game = Twitter([("DOnald Trump", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", True),
 
 
-agent = Agent("DOnald Trump", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", 100, True, 50)
-                
-                
-        
-b = agent._twitter_db.view_columns()
+agent = Agent("yeezus3006569", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", 100, True, 50)
+
+q1 = """SELECT * FROM Users"""
+b = agent._twitter_db.query(q1)
+
+print(len(b))

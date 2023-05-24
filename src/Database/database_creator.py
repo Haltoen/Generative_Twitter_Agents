@@ -60,8 +60,7 @@ class DB:
         column_count = len(column_names)
 
         return column_names, column_count
-    
-    @profile    
+ 
     def query(self, query, params=None):
         '''Used for general queries'''
         conn = sqlite3.connect(self._db_path)
@@ -92,7 +91,7 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name, csv_path = 'src\Database\large_embedded_dataset.csv' ):
+    def __init__(self, name, csv_path = 'src\Database\mini_embedded_dataset.csv' ):
         self._db_path = f"src\Database\{name}.sqlite"
         super().__init__(name, self._db_path)
         self.csv_to_db(csv_path, "initial_data") # possibly not good, bc if an erroneous db is created we wont know
@@ -151,15 +150,18 @@ class Twitter_DB(DB):
         if not self.table_exists("Users"): # Users = username
             query3 = """
             CREATE TABLE Users (
-                user_id TEXT PRIMARY KEY,
+                user_id TEXT PRIMARY KEY
             );
             """
+            self.query(query3)
+            
             query4 = """
             INSERT INTO Users (user_id)
             SELECT DISTINCT username
             FROM Tweet;
             """
             self.query(query4)
+
 
     
     @profile        

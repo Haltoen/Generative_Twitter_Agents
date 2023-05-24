@@ -10,6 +10,8 @@ import faiss
 import numpy as np
 import time 
 import random
+import sqlite3
+
 
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
@@ -45,13 +47,17 @@ class Agent:
         
         print("instruction size", self._instruction_share, "feed size", self._feed_share, "memory size", self._memory_share)
         
-        # insert into user table
+        self.add_user_to_db()
         
-        query = f"INSERT INTO Users (user_id) VALUES ('{self._name}')"
-        self._twitter_db.query(query)
-
-      
-        
+    
+    @profile
+    def add_user_to_db(self):
+        print('adding user to db')
+        try:
+            query = f"INSERT INTO Users (user_id) VALUES ('{self._name}')"
+            self._twitter_db.query(query)
+        except sqlite3.IntegrityError:
+            print("user already exists")
 
     @profile
     def create_agent_dir(self):
