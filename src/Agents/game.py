@@ -5,8 +5,8 @@ import time
 class Twitter:
     def __init__(self) -> None:
         self.agents = []
-        self.current_agent_index = 0    
-
+        self.current_agent_index = 0
+        self.paused = True    
 
     def run(self):
         while not self.paused:
@@ -14,7 +14,7 @@ class Twitter:
             feed = current_agent.recommend_feed()
             current_agent.view_feed(feed)
             self.current_agent_index = (self.current_agent_index + 1) % len(self.agents)
-        time.sleep(1)  # Wait for 1 second before the next iteration
+            time.sleep(1)  # Wait for 1 second before the next iteration
 
     def pause(self):
         self.paused = True
@@ -24,14 +24,15 @@ class Twitter:
             self.paused = False
             self.run()
 
-    def add_agent(agent:Agent):
-        self.agents += [agent]
+    def add_agent(self, agent:Agent):
+        self.agents.append(agent)
         
 
-game = Twitter([("DOnald Trump", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", True),
-               ])
+#game = Twitter([("DOnald Trump", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", True),
 
-game.run()
+
+agent = Agent("DOnald Trump", "you are the former president of the us, you want to build a wall and hates nancy polosi, every tweet you make is a rhyme", 100, True, 50)
                 
                 
         
+b = agent._twitter_db.view_columns()
