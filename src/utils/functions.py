@@ -1,6 +1,5 @@
 from typing import List, Tuple
-import openai
-import numpy as np
+from multiprocessing import Pool
 import re
 import cohere
 import time 
@@ -8,11 +7,29 @@ import os
 import functools
 import cProfile
 import pathlib as pl
-import sys
+import pandas as pd
+import ast
+import numpy as np
 import re
 
 
 parent = pl.Path(__file__).parent  
+
+
+def process_dataframe(df):
+    df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x))
+    df['date'] = df['date'].apply(lambda x: get_date(x))  
+    df['content'] = df['content'].apply(lambda x: str(x))
+    df['hashtags'] = df['content'].apply(lambda x: find_hashtags(x))
+    return df
+
+def parallelize_dataframe(df, func, n_cores=4):
+    df_split = np.array_split(df, n_cores)
+    pool = Pool(n_cores)
+    df = pd.concat(pool.map(func, df_split))
+    pool.close()
+    pool.join()
+    return df
 
 
 def similarity_search_(n, embedding, indexer):

@@ -5,6 +5,7 @@ import time
 import sys
 from pathlib import Path
 
+
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
 
@@ -39,14 +40,8 @@ class Twitter:
         
 
 
-agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True, 100)
+agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True)
 
-q = agent._twitter_db.query("SELECT hashtags FROM Tweet")
-
-j = 0
-for i in q:
-    if i ==  ('#',):
-        j += 1
-print(j)
-
-#print(agent._twitter_db.query("SELECT username FROM Tweet WHERE hashtags LIKE '%#AI%'"))
+outy = agent._twitter_db.search_db('@Elon', 30)
+print(len(outy))
+print(outy)

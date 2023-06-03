@@ -5,12 +5,13 @@ parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
 print("path", str(parent_dir))
 
+
+import shutil
 import sqlite3 
 import pandas as pd
 import os
 from typing import List, Tuple
-from utils.functions import convert_to_BLOB, get_date, list_to_string, profile, find_hashtags, convert_bytes_to_nparray, embed
-import ast
+from utils.functions import  get_date, profile, find_hashtags, convert_bytes_to_nparray, embed, process_dataframe, parallelize_dataframe
 import faiss
 import numpy as np
 import random 
@@ -72,46 +73,50 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name, from_scratch = False , csv_path = 'src\Database\large_embedded_dataset.csv'):
+    def __init__(self, name, from_scratch):
         self._db_path = f"src\Database\{name}.sqlite"
+        self._base_path = 'src\Database\Base_Twitter_db.sqlite'
         self._from_scratch = from_scratch
         self._index = None
         super().__init__(name, self._db_path)
        
-        if not from_scratch:
-            self.twitter_csv_to_db(csv_path, "initial_data") # possibly not good, bc if an erroneous db is created we wont know
+        if not os.path.exists(self._base_path):
+            "building base twitter db"
+            self._csv_path = 'src\Database\large_embedded_dataset.csv'
+            self.twitter_csv_to_db(self._csv_path) # possibly not good, bc if an erroneous db is created we wont know
+        
+        if not self._from_scratch:
+            if not os.path.exists(self._db_path):
+                print("copying base db")
+                shutil.copy2(self._base_path, self._db_path)
         else: 
-            self.build_db()
-            self.build_tables()
+            print("building db from scratch")
+            self._csv_path = 'src\Database\empty.csv'
+            self.build_db() # db has to be deleted if path already exists
+            self.build_tables()        
         
     @profile
-    def twitter_csv_to_db(self, csv_path, table_name):
+    def twitter_csv_to_db(self, csv_path):
         
-        if os.path.exists(self._db_path):
+        if os.path.exists(self._base_path):
             print(f"Database '{self._name}' already exists.")
         else:
             print(f"Building Database from csv")
-            df = pd.read_csv(csv_path)           
-            
-            df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x)) ## not ideal but csv files when opened have bytes as strings, this is fucking slow
-            df['date'] = df['date'].apply(lambda x: get_date(x))  
-            df['content'] = df['content'].apply(lambda x: str(x))
-            df['hashtags'] = df['content'].apply(lambda x: find_hashtags(x))
-            
-            df.to_csv('src\Database\large_embedded_dataset_hashtags.csv')
-            
+            df = pd.read_csv(csv_path)          
+            df = process_dataframe(df)
+
             #print("type df fromk csv after intervention", type(df["content_embedding"][0]))  
-            conn = sqlite3.connect(self._db_path)
-            df.to_sql(table_name, conn, if_exists='replace', index=False)
-            
+            conn = sqlite3.connect(self._base_path)
+            df.to_sql('initial_data', conn, if_exists='replace', index=False)
             self.build_tables()
-            
             conn.close()
-            print(f"CSV data has been imported into the '{table_name}' table in '{self._db_path}'.")
+            
+            print(f"CSV data has been imported into in to '{self._db_path}'.")      
+
                     
     @profile#should not be called by user
     def build_tables(self):
-        
+        '''building tables from twitter db'''
         # modifying the csv file data and making id self incrementing        
         if not self.table_exists("Tweet"):
                 
@@ -147,6 +152,8 @@ class Twitter_DB(DB):
             );
             """
             self.query(query2)
+            
+        if not self._from_scratch:
             self.query("DROP TABLE initial_data")
         
         if not self.table_exists("Follow"):
@@ -276,25 +283,35 @@ class Twitter_DB(DB):
     
     @profile 
     def search_db(self, search: str, n_samples: int) -> List[Tuple]:
+        '''searches the database for tweets, returns a list of tuples of format (content, username, like_count, retweet_count, date)'''
         if search.startswith("#"):
+            print(search)
+        
             query = f"""
-            SELECT content, like_count, retweet_count,date FROM Tweet WHERE hashtags LIKE '%{search}%'
+            SELECT content, username, like_count, retweet_count, date FROM Tweet 
+            WHERE (hashtags LIKE '% {search} %' OR hashtags LIKE '{search} %' OR hashtags LIKE '% {search}')
+            LIMIT {n_samples}
             """
+
             out = self.query(query)
-            return out[:n_samples]
+            return [('Tweet', tweet) for tweet in out]
+        
         if search.startswith("@"):
+            username_to_search = search.lstrip('@')
             query = f"""
-            SELECT content, like_count, retweet_count,date FROM Tweet WHERE username LIKE '%{search.lstrip('@')}%'
+            SELECT content, username, like_count, retweet_count, date FROM Tweet 
+            WHERE username LIKE '%{username_to_search} %'
+            LIMIT {n_samples}
             """
             out = self.query(query)
-            return out[:n_samples]
+            return [('Tweet', tweet) for tweet in out]
                     
         if search.startswith("similar_to:"):
             search = search.lstrip("similar_to:")
             xq = embed([search])
             xq = np.array([xq.embeddings[0]])
             out = self.similarity_search(xq, n_samples)
-            return out
+            return [('Tweet', tweet) for tweet in out[:n_samples]]
             
             
 

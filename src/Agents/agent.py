@@ -22,15 +22,15 @@ from utils.functions import list_to_string, create_embedding_bytes, create_embed
 class Agent:
     '''the twitter agent'''
     @profile
-    def __init__(self, name, description, out_tokens, use_openai , temperature):        
+    def __init__(self, name, description, out_tokens, use_openai, from_scratch= False):        
         self._name = name
         self._description = description
         self._use_openai = use_openai
         self._out_tokens = out_tokens
-        self._temperature = temperature
+        self._temperature = 50
         self._db_path = self.create_agent_dir()       
         self._memory_db = Memory(self._name, self._db_path) 
-        self._twitter_db = Twitter_DB("Twitter_db")
+        self._twitter_db = Twitter_DB("Twitter_db", from_scratch)
         self._index = None # similarity index
         
         with open("src\Agents\instructions.txt", "r", encoding="utf-8", errors="ignore") as file:
