@@ -24,7 +24,7 @@ def similarity_search_(n, embedding, indexer):
 
 def find_hashtags(text) -> str:
     if not isinstance(text, str):
-        return " "
+        text = f'{text}'
     pattern = re.compile(r"#(\w+)")
     hashtags = pattern.findall(text)
     return '#'+', #'.join(hashtags)
