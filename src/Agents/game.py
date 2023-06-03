@@ -42,6 +42,6 @@ class Twitter:
 
 agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True)
 
-outy = agent._twitter_db.search_db('@Elon', 30)
+outy = agent._twitter_db.search_db('similar_to: hello sexy banan', 30)
 print(len(outy))
 print(outy)

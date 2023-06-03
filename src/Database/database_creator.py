@@ -256,6 +256,7 @@ class Twitter_DB(DB):
         k = n_samples # number of tweets to search through
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
+
         
         tweets = self.query("SELECT id, content_embedding FROM Tweet")
         tweet_embeddings = [convert_bytes_to_nparray(embedding) for _ , embedding in tweets]   
@@ -266,14 +267,19 @@ class Twitter_DB(DB):
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
         
-        if self._index is None or retrain: # if model already trained
+       
+        if retrain or not os.path.exists('src\Database\Trained.index'): # if model already trained
+            print("training indexer")
             quantizer = faiss.IndexFlatIP(d)
             self._index = faiss.IndexIVFFlat(quantizer, d, nlist)
-            self._index.train(wb)           
-            
+            self._index.train(wb)         
+            faiss.write_index(self._index, 'src\Database\Trained.index')
+        else:
+            print("loading indexer")
+            self._index = faiss.read_index('src\Database\Trained.index')  
+
         self._index.add(wb)
         self._index.nprobe = 4
-        print(type(xq), type(xq[0]), type(k))
         D, I = self._index.search(xq, k)
         
         recommended_tweet_ids = [tweet_ids[i] for i in I[0]] 
@@ -300,18 +306,18 @@ class Twitter_DB(DB):
             username_to_search = search.lstrip('@')
             query = f"""
             SELECT content, username, like_count, retweet_count, date FROM Tweet 
-            WHERE username LIKE '%{username_to_search} %'
+            WHERE username LIKE '{username_to_search}%'
             LIMIT {n_samples}
             """
             out = self.query(query)
             return [('Tweet', tweet) for tweet in out]
                     
-        if search.startswith("similar_to:"):
+        if search.startswith("similar_to:"): # 
             search = search.lstrip("similar_to:")
             xq = embed([search])
-            xq = np.array([xq.embeddings[0]])
+            xq = np.array([xq.embeddings[0]])  # this is the latency bottleneck
             out = self.similarity_search(xq, n_samples)
-            return [('Tweet', tweet) for tweet in out[:n_samples]]
+            return [('Tweet', tweet) for tweet in out]
             
             
 
