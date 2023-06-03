@@ -288,7 +288,6 @@ class Twitter_DB(DB):
             """
             out = self.query(query)
             return out[:n_samples]
-                    
         if search.startswith("similar_to:"):
             search = search.lstrip("similar_to:")
             xq = embed([search])
