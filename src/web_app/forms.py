@@ -14,5 +14,5 @@ class MakeTweet_form(FlaskForm):
     submit = SubmitField('Send Tweet')
 
 class SearchBar_form(FlaskForm):
-  search = StringField('search field', validators=[DataRequired()])
-  submit = SubmitField('Search')
+    search = StringField('search field', validators=[DataRequired()])
+    submit = SubmitField('Search')
