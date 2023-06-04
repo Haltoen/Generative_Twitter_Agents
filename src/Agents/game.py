@@ -1,6 +1,4 @@
 from typing import List, Tuple
-from agent import Agent
-from utils.functions import embed, create_embedding_bytes, profile
 import time 
 import sys
 from pathlib import Path
@@ -8,16 +6,17 @@ from pathlib import Path
 
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
-
 print(parent_dir)
 
+from Agents.agent import Agent
+from utils.functions import embed, create_embedding_bytes, profile
 
 import time
-class Twitter:
+class Agent_Manager:
     def __init__(self) -> None:
         self.agents = []
         self.current_agent_index = 0
-        self.paused = True    
+        self.paused = True
 
     def run(self):
         while not self.paused:
@@ -40,8 +39,5 @@ class Twitter:
         
 
 
-agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True)
+#agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True , True)
 
-outy = agent._twitter_db.search_db('similar_to: hello sexy banan', 30)
-print(len(outy))
-print(outy)

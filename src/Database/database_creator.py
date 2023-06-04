@@ -5,7 +5,6 @@ parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
 print("path", str(parent_dir))
 
-
 import shutil
 import sqlite3 
 import pandas as pd
@@ -28,7 +27,6 @@ class DB:
             conn = sqlite3.connect(self._db_path)
             conn.close()
 
-    
     @profile
     def view_columns(self, table_name):
         conn = sqlite3.connect(self._db_path)
@@ -73,22 +71,39 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name: str, from_scratch: bool):
+    def __init__(self, from_scratch: bool, reset: bool):
+        if from_scratch is True:
+            name = "empty_twitter_db"
+        else:
+            name = "twitter_db"
         self._db_path = f"src\Database\{name}.sqlite"
         self._base_path = 'src\Database\Base_Twitter_db.sqlite'
         self._from_scratch = from_scratch
+        self._reset = reset
         self._index = None
         super().__init__(name, self._db_path)
-       
+
+        if self._reset is True:
+            try:
+                os.remove(self._db_path)
+                print("Old database deleted successfully.")
+            except FileNotFoundError:
+                print("File not found. Unable to delete.")
+            except OSError as e:
+                print(f"Error deleting the file: {e}")
+
         if not os.path.exists(self._base_path):
-            "building base twitter db"
+            print("building base twitter db")
             self._csv_path = 'src\Database\large_embedded_dataset.csv'
-            self.twitter_csv_to_db(self._csv_path) # possibly not good, bc if an erroneous db is created we wont know
+            copy_path = self._db_path
+            self._db_path = self._base_path
+            self.twitter_csv_to_db(self._csv_path) 
+            self._db_path = copy_path # this is a hack, but it works
         
-        if not self._from_scratch:
+        if self._from_scratch is False:
             if not os.path.exists(self._db_path):
                 print("copying base db")
-                shutil.copy2(self._base_path, self._db_path)
+                shutil.copy2(self._base_path, self._db_path)    
         else: 
             print("building db from scratch")
             self._csv_path = 'src\Database\empty.csv'
@@ -312,8 +327,7 @@ class Twitter_DB(DB):
             out = self.query(query)
             return [('Tweet', tweet) for tweet in out]
                     
-        else:
-            search = search.lstrip("similar_to:")
+        else:   
             xq = embed([search])
             xq = np.array([xq.embeddings[0]])  # this is the latency bottleneck
             out = self.similarity_search(xq, n_samples)

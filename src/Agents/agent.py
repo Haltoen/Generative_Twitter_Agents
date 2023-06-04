@@ -284,7 +284,6 @@ class Agent:
         
         prompt = self._description + "".join(prev_actions) + prev_reflections
         
-        
         #stupid check
         prompt_len = token_count(prompt)
         if prompt_len > 4000:
