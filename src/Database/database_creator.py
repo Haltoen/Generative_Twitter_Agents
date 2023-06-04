@@ -11,7 +11,7 @@ import sqlite3
 import pandas as pd
 import os
 from typing import List, Tuple
-from utils.functions import  get_date, profile, find_hashtags, convert_bytes_to_nparray, embed, process_dataframe, parallelize_dataframe
+from utils.functions import  profile, convert_bytes_to_nparray, embed, process_dataframe, parallelize_dataframe
 import faiss
 import numpy as np
 import random 
