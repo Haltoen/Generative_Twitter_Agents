@@ -11,7 +11,6 @@ from Database.database_creator import Twitter_DB
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "very_secret_key"
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///site.db"
 
 twitter_db = Twitter_DB("twitter_db", True)
 

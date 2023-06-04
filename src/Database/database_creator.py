@@ -73,7 +73,7 @@ class DB:
         self.query(query)
         
 class Twitter_DB(DB):
-    def __init__(self, name, from_scratch):
+    def __init__(self, name: str, from_scratch: bool):
         self._db_path = f"src\Database\{name}.sqlite"
         self._base_path = 'src\Database\Base_Twitter_db.sqlite'
         self._from_scratch = from_scratch
@@ -312,7 +312,7 @@ class Twitter_DB(DB):
             out = self.query(query)
             return [('Tweet', tweet) for tweet in out]
                     
-        if search.startswith("similar_to:"): # 
+        else:
             search = search.lstrip("similar_to:")
             xq = embed([search])
             xq = np.array([xq.embeddings[0]])  # this is the latency bottleneck
