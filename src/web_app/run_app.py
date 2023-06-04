@@ -1,7 +1,13 @@
 from datetime import datetime
 from flask import Flask, render_template, url_for, flash, redirect, g, request 
+import sys
+from pathlib import Path
+
+parent_dir = Path(__file__).parent.parent.resolve() # src
+sys.path.append(str(parent_dir))
+
 from forms import DeployAgent_form , MakeTweet_form, SearchBar_form
-from src.   Database.database_creator import Twitter_DB
+from Database.database_creator import Twitter_DB
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "very_secret_key"
