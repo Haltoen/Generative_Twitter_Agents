@@ -52,6 +52,7 @@ class Agent:
     @profile
     def add_user_to_db(self):
         print('adding user to db')
+        print(self._twitter_db._db_path , "db path agent")
         try:
             query = f"INSERT INTO Users (user_id) VALUES ('{self._name}')"
             self._twitter_db.query(query)
@@ -96,7 +97,6 @@ class Agent:
             print("not implemented yet")
             
         self.parser(text)
-        print("agent answers", text)
         return text      
         
     @profile
@@ -122,21 +122,18 @@ class Agent:
         # Format the date to YYYY-MM-DD
         date = now.strftime("%Y-%m-%d")
 
-
-        if match1:
+        if match1:      
             text = match1.group(1)
             text_embedding = create_embedding_bytes(text) 
-            hashtags = find_hashtags(text) 
-            tuple = (text, text_embedding, self._name, hashtags, 0, 0, date)
+            tuple = (text, text_embedding, self._name, 0, 0, date)
             self._twitter_db.insert_tweet(tuple)
             print(f"Tweet match found and succesfully inserted, {tuple} ")
         if match2:
             text = match2.group(1)
-            hashtags = find_hashtags(text) 
             text_embedding = create_embedding_bytes(text) 
             parent_tweet_id = match2.group(2)
             print(f"Comment match found: {text}, {parent_tweet_id}")
-            self._twitter_db.insert_subtweet((text, text_embedding, self._name, hashtags, 0, 0, date) , parent_tweet_id)
+            self._twitter_db.insert_subtweet((text, text_embedding, self._name, 0, 0, date) , parent_tweet_id)
         if match3:
             tweet_id = match3.group(1)
             print(f"Like match found: {tweet_id}")
@@ -165,10 +162,10 @@ class Agent:
         else:
             memory = list_to_string(memory)
             
-            text = f""""you have the following things in memory: {memory} \n\n now you need to reflect on what you have seen and experienced, what were the most interesting takeaways from the your memories, given your description?
+            text = f""""you have the following things in memory: {memory} \n\n now you need to reflect on what you have seen and experienced,
+            what were the most interesting takeaways from the your memories, given your description?
             You can reflect on Tweet_memory, Subtweet_memory and Reflection. Remember you add a reflection to your memory like this: api_call[Reflection("text..”, [keywords, .,..])] \n\n"""
             if (1-self._instruction_share)*self._context_size  > token_count(text) : # 1 token per prompt
-                "agent reflecting"
                 self.prompt(text)
                 
                 
@@ -196,14 +193,15 @@ class Agent:
                 
         text = f"""here are short term memories of twitter interaction: {memory} \n\n now you view your feed and react to what you have seen and experienced. Feed: {feed}. \n\n""" 
         
-        print("length of feed: ", token_count(feed))
-        print("length of memory: ", token_count(memory))
-        print(" length of prompt: ", token_count(text))
+        # remove when safe
+        #print("length of feed: ", token_count(feed))
+        #print("length of memory: ", token_count(memory)) 
+        #print(" length of prompt: ", token_count(text))
         
         out = [(label, (*tuple, token_count(tuple[0]))) for label, tuple in lst_feed]
         
         self.prompt(text)
-        
+           
         self._memory_db.dump_to_memory(out)        
         
     @profile

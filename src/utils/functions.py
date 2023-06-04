@@ -20,15 +20,6 @@ def process_dataframe(df):
     df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x))
     df['date'] = df['date'].apply(lambda x: get_date(x))  
     df['content'] = df['content'].apply(lambda x: str(x))
-    df['hashtags'] = df['content'].apply(lambda x: find_hashtags(x))
-    return df
-
-def parallelize_dataframe(df, func, n_cores=4):
-    df_split = np.array_split(df, n_cores)
-    pool = Pool(n_cores)
-    df = pd.concat(pool.map(func, df_split))
-    pool.close()
-    pool.join()
     return df
 
 
@@ -39,12 +30,12 @@ def similarity_search_(n, embedding, indexer):
     for result in results:
         print(result)
 
-def find_hashtags(text) -> str:
+def find_hashtags(text) -> list:
     if not isinstance(text, str):
         text = f'{text}'
     pattern = re.compile(r"#(\w+)")
     hashtags = pattern.findall(text)
-    return '#'+', #'.join(hashtags)
+    return hashtags
 
 def profile(func):
     @functools.wraps(func)

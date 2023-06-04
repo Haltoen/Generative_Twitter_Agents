@@ -9,10 +9,7 @@ from pathlib import Path
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
 
-print(parent_dir)
 
-
-import time
 class Twitter:
     def __init__(self) -> None:
         self.agents = []
@@ -40,8 +37,9 @@ class Twitter:
         
 
 
-agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True)
+agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True, False)
 
-outy = agent._twitter_db.search_db('similar_to: hello sexy banan', 30)
-print(len(outy))
-print(outy)
+for i in range(10):
+    feed = agent.recommend_feed()
+    agent.view_feed(feed)
+    print(f"feed {i} viewed")
