@@ -10,7 +10,7 @@ import sqlite3
 import pandas as pd
 import os
 from typing import List, Tuple
-from utils.functions import  get_date, profile, find_hashtags, convert_bytes_to_nparray, embed, process_dataframe, parallelize_dataframe
+from utils.functions import  profile, convert_bytes_to_nparray, embed, process_dataframe, find_hashtags
 import faiss
 import numpy as np
 import random 
@@ -26,7 +26,7 @@ class DB:
         else:
             conn = sqlite3.connect(self._db_path)
             conn.close()
-
+    
     @profile
     def view_columns(self, table_name):
         conn = sqlite3.connect(self._db_path)
@@ -62,13 +62,6 @@ class DB:
         result = self.query(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
         return len(result) > 0 
     
-    @profile
-    def drop_row(self, table_name, row_id):
-        query = f"""
-        DELETE FROM {table_name}
-        WHERE id = {row_id};
-        """
-        self.query(query)
         
 class Twitter_DB(DB):
     def __init__(self, from_scratch: bool, reset: bool):
@@ -112,15 +105,12 @@ class Twitter_DB(DB):
         
     @profile
     def twitter_csv_to_db(self, csv_path):
-        
         if os.path.exists(self._base_path):
             print(f"Database '{self._name}' already exists.")
-        else:
+        else:            
             print(f"Building Database from csv")
             df = pd.read_csv(csv_path)          
             df = process_dataframe(df)
-
-            #print("type df fromk csv after intervention", type(df["content_embedding"][0]))  
             conn = sqlite3.connect(self._base_path)
             df.to_sql('initial_data', conn, if_exists='replace', index=False)
             self.build_tables()
@@ -132,7 +122,11 @@ class Twitter_DB(DB):
     @profile#should not be called by user
     def build_tables(self):
         '''building tables from twitter db'''
-        # modifying the csv file data and making id self incrementing        
+        # modifying the csv file data and making id self incrementing  
+        
+        tables = self.query("""SELECT name FROM sqlite_master WHERE type='table';""")      
+    
+              
         if not self.table_exists("Tweet"):
                 
             query = """
@@ -141,7 +135,6 @@ class Twitter_DB(DB):
                 content TEXT,
                 content_embedding BLOB,
                 username TEXT,
-                hashtags TEXT,
                 like_count INTEGER,
                 retweet_count INTEGER,
                 date TEXT
@@ -150,15 +143,15 @@ class Twitter_DB(DB):
             self.query(query)
             
             if not self._from_scratch: 
-                query1 = """
-                INSERT INTO Tweet (content, content_embedding, username, hashtags, like_count, retweet_count, date)
-                SELECT content, content_embedding, username, hashtags, like_count, retweet_count, date
+                query = """
+                INSERT INTO Tweet (content, content_embedding, username, like_count, retweet_count, date)
+                SELECT content, content_embedding, username, like_count, retweet_count, date
                 FROM initial_data;
                 """
-                self.query(query1)
+                self.query(query)
 
         if not self.table_exists("Subtweet"):
-            query2 = """
+            query = """
             CREATE TABLE Subtweet (
                 id_child INTEGER PRIMARY KEY,
                 id_parent INTEGER,
@@ -166,13 +159,35 @@ class Twitter_DB(DB):
                 FOREIGN KEY (id_child) REFERENCES Tweet(tweet_id)
             );
             """
-            self.query(query2)
+            self.query(query)
+        
+        if not self.table_exists("Hashtag"):
+            query = """
+            CREATE TABLE Hashtag (
+                tweet_id INTEGER,
+                hashtag TEXT,
+                PRIMARY KEY (tweet_id, hashtag),
+                FOREIGN KEY (tweet_id) REFERENCES Tweet(id)
+            );
+                        """    
+            self.query(query)
+            
+            query = """
+            SELECT id, content FROM Tweet;
+            """
+            
+            out = self.query(query)
+            for id, content in out:
+                hashtags = find_hashtags(content)
+                for hashtag in hashtags:
+                    tuple = (id, hashtag)
+                    self.insert_hashtag(tuple)            
             
         if not self._from_scratch:
             self.query("DROP TABLE initial_data")
         
         if not self.table_exists("Follow"):
-            query3 = """
+            query = """
             CREATE TABLE Follow (
                 follower INTEGER,
                 followee INTEGER,
@@ -181,24 +196,35 @@ class Twitter_DB(DB):
                 FOREIGN KEY (followee) REFERENCES Tweet (username)
             );
             """
-            self.query(query3) 
+            self.query(query) 
 
         if not self.table_exists("Users"): # Users = username
-            query3 = """
+            query = """
             CREATE TABLE Users (
                 user_id TEXT PRIMARY KEY
             );
             """
-            self.query(query3)
+            self.query(query)
             
-            query4 = """
+            query = """
             INSERT INTO Users (user_id)
             SELECT DISTINCT username
             FROM Tweet;
             """
-            self.query(query4)
+            self.query(query)
 
 
+    @profile
+    def insert_hashtag(self, tuple):
+        try:
+            query = """
+            INSERT INTO Hashtag (tweet_id, hashtag)
+            VALUES (?, ?);
+            """
+            self.query(query, tuple)
+        except sqlite3.IntegrityError:
+            pass
+    
     @profile        
     def insert_subtweet(self, tuple, parent_id):
         self.insert_tweet(tuple)
@@ -222,12 +248,18 @@ class Twitter_DB(DB):
     
     @profile    
     def insert_tweet(self, tuple):
-        query1 = """
-        INSERT INTO Tweet (content,content_embedding, username, hashtags, like_count, retweet_count, date)
+        query = """
+        INSERT INTO Tweet (content,content_embedding, username, like_count, retweet_count, date)
         VALUES (?, ?, ?, ?, ?, ?);
         """
-        self.query(query1, tuple)        
-    
+        self.query(query, tuple)        
+        
+        
+        hashtags = find_hashtags(tuple[0]) # content is first elm of tuple
+        latest_tweet_id = self.query(query)[0][0]  # returns a list of tuples, we want the first element of the first tuple            
+        for hashtag in hashtags:
+            self.insert_hashtag((latest_tweet_id, hashtag))
+
     @profile    
     def increment_like_count(self, id):
         query = f"""
@@ -258,12 +290,12 @@ class Twitter_DB(DB):
     
     @profile    
     def get_feed(self, n_samples)-> List[Tuple] : # returns a list of tuples, used by frontend
-        tweet_query = f"""
-        SELECT content, username, hashtags, like_count, retweet_count, date FROM Tweet
+        tweet_query = f""" 
+        SELECT content, username, like_count, retweet_count, date FROM Tweet  
         ORDER BY id DESC
         LIMIT {n_samples};        
         """
-        lst = [("Tweet", tweet) for tweet in self.query(tweet_query)]
+        lst = [("Tweet", tweet) for tweet in self.query(tweet_query)] # change to also include hashtags from hashtag table
         return lst
     
     @profile
@@ -303,19 +335,30 @@ class Twitter_DB(DB):
         
     
     @profile 
-    def search_db(self, search: str, n_samples: int) -> List[Tuple]:
+    def search_db(self, search: str, n_samples: int) -> List[Tuple]: # CHNAGE FUNCTION SEARCH IN HASHTAG TABLE INSTEAD!!
         '''searches the database for tweets, returns a list of tuples of format (content, username, like_count, retweet_count, date)'''
-        if search.startswith("#"):
-            print(search)
-        
+        if search.startswith("#"): # change this 
+            
+            term = search.lstrip('#')
+            
             query = f"""
-            SELECT content, username, like_count, retweet_count, date FROM Tweet 
-            WHERE (hashtags LIKE '% {search} %' OR hashtags LIKE '{search} %' OR hashtags LIKE '% {search}')
+            SELECT tweet_id FROM Hashtag WHERE hashtag LIKE '{term}%' 
             LIMIT {n_samples}
             """
+            
+            tweet_ids = self.query(query)        
+            tweets = []
+                      
+            for id in tweet_ids:
+                query = f"""
+                SELECT content, username, like_count, retweet_count, date FROM Tweet 
+                WHERE id IN ({id[0]})
+                """
+                tweet = self.query(query)
+                tweets.append(('Tweet', tweet))
 
-            out = self.query(query)
-            return [('Tweet', tweet) for tweet in out]
+            return tweets
+           
         
         if search.startswith("@"):
             username_to_search = search.lstrip('@')
