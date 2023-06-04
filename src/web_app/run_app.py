@@ -1,13 +1,13 @@
 from datetime import datetime
-from flask import Flask, render_template, url_for, flash, redirect, g 
-from forms import DeployAgent_form , MakeTweet_form
+from flask import Flask, render_template, url_for, flash, redirect, g, request 
+from forms import DeployAgent_form , MakeTweet_form, SearchBar_form
 from src.   Database.database_creator import Twitter_DB
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "very_secret_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///site.db"
 
-twitter_db = Twitter_DB("twitter_db")
+twitter_db = Twitter_DB("twitter_db", True)
 
 user_is_searching = False
 user_search_size = 20
@@ -25,10 +25,7 @@ def close_connection(exception):
         db.close()
 
 def fetch_feed():# most recent tweets or searched tweets
-    if user_is_searching==True:
-        unformatted = ...
-    else:
-        unfomatted_tweets = twitter_db.get_feed(user_search_size)
+    unfomatted_tweets = twitter_db.get_feed(20)
     # Format the fetched tweets
     latest_tweets = [
         {
@@ -40,11 +37,34 @@ def fetch_feed():# most recent tweets or searched tweets
     ]
     return latest_tweets
 
-# home and about are examples of static pages
-@app.route("/")
-def home():
-    return render_template("home.html", feed = fetch_feed())
+def search_feed(search: str):# most recent tweets or searched tweets
+    unfomatted_tweets = twitter_db.search_db(search, user_search_size)
+    # Format the fetched tweets
+    if unfomatted_tweets is None:
+        flash("Error occurred during search: you need to setup cohere.ai api key", "error")
+        return [] 
+    latest_tweets = [
+        {
+            "Author": tweet[1][1], 
+            "Date": tweet[1][4], 
+            "Content": tweet[1][0]  
+        }   
+        for tweet in unfomatted_tweets
+    ]
+    return latest_tweets
 
+@app.route("/", methods=["GET", "POST"])
+def home():
+    if request.method == "POST":
+        search = request.form.get("search")
+        if search == "":
+            flash('most recent')
+            return render_template("home.html", feed=fetch_feed())
+        else:
+            flash(f'Search results for: {search}')
+            return render_template("home.html", feed=search_feed(search))
+    return render_template("home.html", feed=fetch_feed())
+    
 @app.route("/about")
 def about():
     return render_template("about.html", title = "about")
