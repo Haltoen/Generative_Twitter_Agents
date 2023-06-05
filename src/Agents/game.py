@@ -49,5 +49,8 @@ class Agent_Manager:
     def add_agent(self, agent:Agent):
         self.agents.append(agent)
         
+agent = Agent("test", "test", 10, True)
 
+feed = agent.recommend_feed()
+agent.view_feed(feed)
 

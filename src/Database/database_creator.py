@@ -330,8 +330,12 @@ class Twitter_DB(DB):
         tweet_embeddings = [convert_bytes_to_nparray(embedding) for _ , embedding in tweets]   
         tweet_ids = [id for id, _ in tweets]
         embeddings = np.array(tweet_embeddings)
-        wb = np.stack(embeddings)
-        
+        try:
+            wb = np.stack(embeddings)
+        except:
+            print('need at least one array to stack')
+            return []
+            
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
         
