@@ -49,5 +49,4 @@ class Agent_Manager:
         
 
 
-#agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True , True)
-
+agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True)

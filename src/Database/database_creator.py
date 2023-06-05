@@ -20,11 +20,22 @@ class DB:
         self._db_path = db_path
     
     @profile        
-    def build_db(self)-> bool:
+    def build_db(self):
         if os.path.exists(self._db_path):
             print(f"Database '{self._name}' already exists.")
         else:
             conn = sqlite3.connect(self._db_path)
+            conn.close()
+    
+    @profile
+    def build_from_csv(self, csv_path):
+        if os.path.exists(self._db_path):
+            print(f"Database '{self._name}' already exists.")
+        else:
+            df = pd.read_csv(csv_path)          
+            df = process_dataframe(df)
+            conn = sqlite3.connect(self._db_path)
+            df.to_sql('initial_data', conn, if_exists='replace', index=False)
             conn.close()
     
     @profile
@@ -58,13 +69,13 @@ class DB:
         return result
     
     @profile
-    def table_exists(self, table_name):
+    def table_exists(self, table_name) -> bool:
         result = self.query(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
         return len(result) > 0 
     
         
 class Twitter_DB(DB):
-    def __init__(self, from_scratch: bool, reset: bool):
+    def __init__(self, from_scratch: bool, reset: bool = False): # default is to not to reset the db        
         if from_scratch is True:
             name = "empty_twitter_db"
         else:
@@ -88,47 +99,35 @@ class Twitter_DB(DB):
         if not os.path.exists(self._base_path):
             print("building base twitter db")
             self._csv_path = 'src\Database\large_embedded_dataset.csv'
-            copy_path = self._db_path
-            self._db_path = self._base_path
-            self.twitter_csv_to_db(self._csv_path) 
-            self._db_path = copy_path # this is a hack, but it works
+            self.twitter_csv_to_db() 
         
         if self._from_scratch is False:
             if not os.path.exists(self._db_path):
                 print("copying base db")
-                shutil.copy2(self._base_path, self._db_path)    
+                self.build_db()
+                shutil.copy2(self._base_path, self._db_path) 
+                print("testing from scratch in twitter object:" , self.query("SELECT id FROM Tweet LIMIT 10"))
         else: 
-            print("building db from scratch")
+            print("building empty db from scratch")
             self._csv_path = 'src\Database\empty.csv'
-            self.build_db() # db has to be deleted if path already exists
-            self.build_tables()        
+            self.build_db()
+            db = DB("empty_twitter_db", self._db_path)
+            db.build_from_csv(self._csv_path)
+            self.build_tables(db)   
         
     @profile
-    def twitter_csv_to_db(self, csv_path):
-        if os.path.exists(self._base_path):
-            print(f"Database '{self._name}' already exists.")
-        else:            
-            print(f"Building Database from csv")
-            df = pd.read_csv(csv_path)          
-            df = process_dataframe(df)
-            conn = sqlite3.connect(self._base_path)
-            df.to_sql('initial_data', conn, if_exists='replace', index=False)
-            self.build_tables()
-            conn.close()
-            
-            print(f"CSV data has been imported into in to '{self._db_path}'.")      
+    def twitter_csv_to_db(self):        
+        print(f"Building Database from {self._csv_path} csv")
+        db = DB("base_twitter_db", self._base_path)
+        db.build_from_csv(self._csv_path)        
+        self.build_tables(db)
+        print(f"CSV data has been imported into in to '{self._db_path}'.")      
 
                     
     @profile#should not be called by user
-    def build_tables(self):
-        '''building tables from twitter db'''
-        # modifying the csv file data and making id self incrementing  
-        
-        tables = self.query("""SELECT name FROM sqlite_master WHERE type='table';""")      
-    
-              
-        if not self.table_exists("Tweet"):
-                
+    def build_tables(self, db: DB):
+        '''building tables for twitter db'''
+        if not db.table_exists("Tweet"):     
             query = """
             CREATE TABLE Tweet (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,7 +139,7 @@ class Twitter_DB(DB):
                 date TEXT
             );
             """
-            self.query(query)
+            db.query(query)
             
             if not self._from_scratch: 
                 query = """
@@ -148,9 +147,9 @@ class Twitter_DB(DB):
                 SELECT content, content_embedding, username, like_count, retweet_count, date
                 FROM initial_data;
                 """
-                self.query(query)
+                db.query(query)
 
-        if not self.table_exists("Subtweet"):
+        if not db.table_exists("Subtweet"):
             query = """
             CREATE TABLE Subtweet (
                 id_child INTEGER PRIMARY KEY,
@@ -159,34 +158,41 @@ class Twitter_DB(DB):
                 FOREIGN KEY (id_child) REFERENCES Tweet(tweet_id)
             );
             """
-            self.query(query)
+            db.query(query)
         
-        if not self.table_exists("Hashtag"):
+        if not db.table_exists("Hashtag"):
             query = """
             CREATE TABLE Hashtag (
                 tweet_id INTEGER,
                 hashtag TEXT,
                 PRIMARY KEY (tweet_id, hashtag),
                 FOREIGN KEY (tweet_id) REFERENCES Tweet(id)
-            );
-                        """    
-            self.query(query)
+            );"""    
+            db.query(query)
+            
             
             query = """
             SELECT id, content FROM Tweet;
             """
             
-            out = self.query(query)
+            out = db.query(query)
             for id, content in out:
                 hashtags = find_hashtags(content)
                 for hashtag in hashtags:
-                    tuple = (id, hashtag)
-                    self.insert_hashtag(tuple)            
+                    query_params = (id, hashtag)
+                    try:
+                        query = """
+                        INSERT INTO Hashtag (tweet_id, hashtag)
+                        VALUES (?, ?);
+                        """
+                        db.query(query, query_params)
+                    except sqlite3.IntegrityError:
+                        pass 
             
         if not self._from_scratch:
-            self.query("DROP TABLE initial_data")
+            db.query("DROP TABLE initial_data")
         
-        if not self.table_exists("Follow"):
+        if not db.table_exists("Follow"):
             query = """
             CREATE TABLE Follow (
                 follower INTEGER,
@@ -196,23 +202,22 @@ class Twitter_DB(DB):
                 FOREIGN KEY (followee) REFERENCES Tweet (username)
             );
             """
-            self.query(query) 
+            db.query(query) 
 
-        if not self.table_exists("Users"): # Users = username
+        if not db.table_exists("Users"): # Users = username
             query = """
             CREATE TABLE Users (
                 user_id TEXT PRIMARY KEY
             );
             """
-            self.query(query)
+            db.query(query)
             
             query = """
             INSERT INTO Users (user_id)
             SELECT DISTINCT username
             FROM Tweet;
             """
-            self.query(query)
-
+            db.query(query)
 
     @profile
     def insert_hashtag(self, tuple):
@@ -253,8 +258,7 @@ class Twitter_DB(DB):
         VALUES (?, ?, ?, ?, ?, ?);
         """
         self.query(query, tuple)        
-        
-        
+
         hashtags = find_hashtags(tuple[0]) # content is first elm of tuple
         latest_tweet_id = self.query(query)[0][0]  # returns a list of tuples, we want the first element of the first tuple            
         for hashtag in hashtags:
