@@ -50,9 +50,4 @@ class Agent_Manager:
         self.agents.append(agent)
         
 
-agent = Agent("agent1", "twitter.db", 100)
 
-for i in range(1):
-    feed = agent.recommend_feed()
-    agent.view_feed(feed)
-    
