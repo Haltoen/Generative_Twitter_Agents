@@ -47,6 +47,3 @@ class Agent_Manager:
     def add_agent(self, agent:Agent):
         self.agents.append(agent)
         
-
-
-agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True)
