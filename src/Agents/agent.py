@@ -25,7 +25,7 @@ class Agent:
         self._description = description
         self._use_openai = True # we use openai for now
         self._out_tokens = out_tokens
-        self._temperature = 50
+        self._temperature = 0.5
         self._db_path = self.create_agent_dir()       
         self._memory_db = Memory(self._name, self._db_path) 
         self._twitter_db = Twitter_DB(from_scratch)  #reset varaible also
@@ -73,6 +73,8 @@ class Agent:
         prompt = f"""{self._prompt_template} Now the task begins: {text}\n\n"""  
         #print("template size", token_count(self._prompt_template))
         #print("prompt size", token_count(prompt))
+        print("HERE IS THE PROMPT: ", prompt, "\n\n")
+        
         if self._use_openai is True:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
@@ -103,8 +105,10 @@ class Agent:
         pattern5 = r'api_call\[Reflection\("(.+)", \[(.+)\]\)\]'
         pattern6 = r'api_call\[Follow\((.*?)\)\]'      
         
+        print("INPUT TEXT:",  self._name  , text , "\n\n")
+        
         match1 = re.search(pattern1, text)
-        match2 = re.search(pattern2, text)
+        match2 = re.search(pattern2, text)  
         match3 = re.search(pattern3, text)
         match4 = re.search(pattern4, text)
         match5 = re.search(pattern5, text)
@@ -161,31 +165,22 @@ class Agent:
             You can reflect on Tweet_memory, Subtweet_memory and Reflection. Remember you add a reflection to your memory like this: api_call[Reflection("text..”, [keywords, .,..])] \n\n"""
             if (1-self._instruction_share)*self._context_size  > token_count(text) : # 1 token per prompt
                 self.prompt(text)
-                
-                
-    @profile
-    def get_reflection(self):
-        '''gets the reflection from the memory and returns it'''
-        print("getting reflection")
-        reflection = self._memory_db.get_reflection()
-        return reflection
                     
     @profile
     def view_feed(self, lst_feed: List[tuple]):
-        '''reacts to the feed and returns a reaction, this is a way to synthesize and compress the feed'''
-        # think about whether feed is correct or not. remember we want to add the entire feed to memory, so perhaps it should be a different format from list.
-        # feed on form either tweet: ['id', 'content', 'username', 'like_count', 'retweet_count')]
-        # or subtweet: ['id', 'content', 'username', 'like_count', 'retweet_count', 'tweet_id')]
-        
+        '''reacts to the feed and returns a reaction, this is a way to synthesize and compress the feed'''        
         feed = list_to_string(lst_feed)
         
         if token_count(feed)  > (1-self._instruction_share)*self._context_size :  # computing the number of tokens in the feed, if it is too long we return an error
             raise ValueError("Feed is too long, please shorten it")
         
         self.memory_manager()            
-        memory = self._memory_db.get_memory_reflections_tweets()
-                
-        text = f"""here are short term memories of twitter interaction: {memory} \n\n now you view your feed and react to what you have seen and experienced. Feed: {feed}. \n\n""" 
+        memory_reflections = self._memory_db.get_memory_reflections_tweets()
+        query = f"SELECT content FROM Tweet WHERE username = '{self._name}' ORDER BY id DESC LIMIT 5"        
+        latest_tweets = self._twitter_db.query(query)
+        latest_tweets = list_to_string([("Tweet", tweet) for tweet in latest_tweets])
+        
+        text = f"""here are short term memories of twitter interaction: {memory_reflections} \n here are your previous tweets: {latest_tweets} \\now you view your feed and react to what you have seen and experienced. Feed: {feed}. \n\n""" 
         
         # remove when safe
         #print("length of feed: ", token_count(feed))
@@ -286,7 +281,7 @@ class Agent:
                 
         tweets = self._twitter_db.similarity_search(xq, 30)
         
-        upper = self._feed_share * self._context_size + 100 # 100 buffer
+        upper = 100 #self._feed_share * self._context_size + 100 # 100 buffer
         total = 0     
         
         feed = self._twitter_db.get_feed(15)

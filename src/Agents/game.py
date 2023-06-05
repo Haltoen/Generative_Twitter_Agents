@@ -9,7 +9,9 @@ sys.path.append(str(parent_dir))
 print(parent_dir)
 
 from Agents.agent import Agent
-from utils.functions import embed, create_embedding_bytes, profile
+from Database.database_creator import DB, Twitter_DB
+from utils.functions import find_hashtags
+import sqlite3
 
 import time
 class Agent_Manager:
@@ -48,5 +50,9 @@ class Agent_Manager:
         self.agents.append(agent)
         
 
+agent = Agent("agent1", "twitter.db", 100)
 
-agent = Agent("spillmester martin", "bardas vogter du taler om det danske tv program barda", 100, True)
+for i in range(1):
+    feed = agent.recommend_feed()
+    agent.view_feed(feed)
+    

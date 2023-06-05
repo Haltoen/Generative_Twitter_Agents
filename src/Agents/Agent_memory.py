@@ -115,9 +115,13 @@ class Memory(DB):
         return text
     
     @profile
-    def get_reflections(self) -> str:
+    def get_reflections(self, number = None) -> str:
         '''returns the reflections of the agent as a string'''
-        reflections = self.query("SELECT Reflection, Keywords FROM Reflections")
+        if number is None:
+            reflections = self.query("SELECT Reflection, Keywords FROM Reflections")
+        else:
+            reflections = self.query(f"SELECT Reflection, Keywords FROM Reflections ORDER BY id DESC LIMIT {number}")
+            
         text = [('Reflection', reflection) for reflection in reflections]
         return text
     
