@@ -4,9 +4,7 @@ from datetime import datetime
 from pathlib import Path
 import sys
 import re
-from typing import List,Tuple
-import pathlib as pl
-import faiss
+from typing import List
 import numpy as np
 import time 
 import random
