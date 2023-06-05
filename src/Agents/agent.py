@@ -22,15 +22,15 @@ from utils.functions import list_to_string, create_embedding_bytes, create_embed
 class Agent:
     '''the twitter agent'''
     @profile
-    def __init__(self, name, description, out_tokens, use_openai, from_scratch= False):        
+    def __init__(self, name, description, out_tokens, from_scratch= False):        
         self._name = name
         self._description = description
-        self._use_openai = use_openai
+        self._use_openai = True # we use openai for now
         self._out_tokens = out_tokens
         self._temperature = 50
         self._db_path = self.create_agent_dir()       
         self._memory_db = Memory(self._name, self._db_path) 
-        self._twitter_db = Twitter_DB("Twitter_db", from_scratch)
+        self._twitter_db = Twitter_DB(from_scratch)  #reset varaible also
         self._index = None # similarity index
         
         with open("src\Agents\instructions.txt", "r", encoding="utf-8", errors="ignore") as file:
@@ -51,8 +51,6 @@ class Agent:
     
     @profile
     def add_user_to_db(self):
-        print('adding user to db')
-        print(self._twitter_db._db_path , "db path agent")
         try:
             query = f"INSERT INTO Users (user_id) VALUES ('{self._name}')"
             self._twitter_db.query(query)
@@ -67,8 +65,6 @@ class Agent:
         if not os.path.exists(path):
             os.makedirs(path)
             print(f"Directory '{path}' created.")
-        else:
-            print(f"Directory '{path}' already exists.")
                             
         return os.path.join(path, f"{self._name}.sqlite")
             
