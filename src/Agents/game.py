@@ -34,6 +34,16 @@ class Agent_Manager:
             self.paused = False
             self.run()
 
+    def pause_unpause(self):
+        if self.paused is True:
+            self.paused = False
+        else:
+            self.paused = True
+        
+    def status(self)-> bool:
+        return self.paused
+
+    
     def add_agent(self, agent:Agent):
         self.agents.append(agent)
         

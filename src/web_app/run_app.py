@@ -15,7 +15,7 @@ def start_app (from_scratch: bool, reset: bool):
     app.config['SECRET_KEY'] = "very_secret_key"
 
     twitter_db = Twitter_DB(from_scratch, reset)
-    #agent_manager = Agent_Manager()
+    agent_manager = Agent_Manager()
 
     user_search_size = 20
 
@@ -60,8 +60,15 @@ def start_app (from_scratch: bool, reset: bool):
         ]
         return latest_tweets
 
+
+    ### ROUTES
+
     @app.route("/", methods=["GET", "POST"])
     def home():
+        status = 'Paused' if agent_manager.status else 'Running'
+        pause_unpause = 'Unpause' if agent_manager.status else 'Pause'
+        print(status)
+        print(pause_unpause)
         if request.method == "POST":
             search = request.form.get("search")
             if search == "":
@@ -70,8 +77,15 @@ def start_app (from_scratch: bool, reset: bool):
             else:
                 flash(f'Search results for: {search}')
                 return render_template("home.html", feed=search_feed(search))
-        return render_template("home.html", feed=fetch_feed())
-        
+        return render_template("home.html", feed=fetch_feed(), status=status, pause_unpause=pause_unpause)
+
+    @app.route('/toggle_pause', methods=['POST'])
+    def toggle_pause():
+        agent_manager.pause_unpause()
+        print("toggle pause")
+        return redirect(url_for("home"))
+
+
     @app.route("/about")
     def about():
         return render_template("about.html", title = "about")

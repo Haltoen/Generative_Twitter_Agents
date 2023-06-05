@@ -20,3 +20,30 @@
     <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
 </form>
 {% endblock searchbar %}
+
+{% block sidebar %}
+<div class="col-md-4">
+    <div class="content-section">
+      <h3>Agent Control Panel</h3>
+      <p class="text-muted">Status: {{ status }}</p>
+      <form action="{{ url_for('toggle_pause') }}" method="POST">
+          <button class="btn btn-primary" type="submit" name="pause_unpause" value="{{ pause_unpause }}">{{ pause_unpause }}</button>
+      </form>
+      <br>
+      <ul class="list-group">
+        {% if agents %}
+          {% for agent in agents %}
+            <li class="list-group-item list-group-item-light">
+              <span class="agent-name">{{ agent.name }}</span>
+            </li>
+          {% endfor %}
+        {% else %}
+          <li class="list-group-item list-group-item-light">
+            <span class="agent-name">No agents available</span>
+            <span class="status-indicator default"></span>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+{% endblock sidebar %}
