@@ -20,7 +20,7 @@ from utils.functions import list_to_string, create_embedding_bytes, create_embed
 class Agent:
     '''the twitter agent'''
     @profile
-    def __init__(self, name, description, out_tokens, from_scratch= False):        
+    def __init__(self, name, description, out_tokens, DB):        
         self._name = name
         self._description = description
         self._use_openai = True # we use openai for now
@@ -28,7 +28,7 @@ class Agent:
         self._temperature = 0.5
         self._db_path = self.create_agent_dir()       
         self._memory_db = Memory(self._name, self._db_path) 
-        self._twitter_db = Twitter_DB(from_scratch)  #reset varaible also
+        self._twitter_db = DB  # connect to database
         self._index = None # similarity index
         
         with open("src\Agents\instructions.txt", "r", encoding="utf-8", errors="ignore") as file:
@@ -47,6 +47,12 @@ class Agent:
         
         self.add_user_to_db()
     
+    def to_dict(self) -> dict:
+        return {
+            "name": self._name,
+            "description": self._description
+        }
+
     @profile
     def add_user_to_db(self):
         try:
