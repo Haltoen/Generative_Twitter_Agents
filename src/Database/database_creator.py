@@ -353,7 +353,7 @@ class Twitter_DB(DB):
         self._index.add(wb)
         self._index.nprobe = 4
         try:
-            D, I = self._index.search(xq, k)
+            D, I = self._index.search(xq, k) # distance, index
             recommended_tweet_ids = [tweet_ids[i] for i in I[0]] 
         except Exception as e: # FIND MORE SPECIFIC EXCEPTION, THE ONE FAISS THROWS WHEN ITS INPUT IS EMPTY
             print(e)

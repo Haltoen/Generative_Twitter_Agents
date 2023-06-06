@@ -159,11 +159,11 @@ class Agent:
             "nothing reflect on input is empty"
         else:
             memory = list_to_string(memory)
+            reflections = list_to_string(self._memory_db.get_reflections(10))
             
-            text = f""""you have the following things in memory: {memory} \n\n now you need to reflect on what you have seen and experienced,
-            what were the most interesting takeaways from the your memories, given your description?
-            You can reflect on Tweet_memory, Subtweet_memory and Reflection. Remember you add a reflection to your memory like this: api_call[Reflection("text..”, [keywords, .,..])] \n\n"""
-            if (1-self._instruction_share)*self._context_size  > token_count(text) : # 1 token per prompt
+            text = f""""here are your 10 latest memories and reflections: {reflections} you have just viewed the following things on twitter: {memory} \n\n now you will reflect on what you have seen and experienced
+            and make reflections in accordance with your description. You add a reflection to your memory like this: api_call[Reflection("text..”, [keywords, .,..])] \n\n"""
+            if (1-self._instruction_share)*self._context_size  > token_count(text) : 
                 self.prompt(text)
                     
     @profile
@@ -175,12 +175,14 @@ class Agent:
             raise ValueError("Feed is too long, please shorten it")
         
         self.memory_manager()            
-        memory_reflections = self._memory_db.get_memory_reflections_tweets()
+        memory_reflections = list_to_string(self._memory_db.get_memory_reflections_tweets())
+        
         query = f"SELECT content FROM Tweet WHERE username = '{self._name}' ORDER BY id DESC LIMIT 5"        
         latest_tweets = self._twitter_db.query(query)
         latest_tweets = list_to_string([("Tweet", tweet) for tweet in latest_tweets])
         
-        text = f"""here are short term memories of twitter interaction: {memory_reflections} \n here are your previous tweets: {latest_tweets} \\now you view your feed and react to what you have seen and experienced. Feed: {feed}. \n\n""" 
+        text = f"""here are short term memories and reflections: {memory_reflections} \n here are your previous tweets: {latest_tweets} \\
+        now you view your feed and react to what you have seen and experienced based on a combination of previous memories, reflections in accordance with our description. Feed: {feed}. \n\n""" 
         
         # remove when safe
         #print("length of feed: ", token_count(feed))
@@ -267,7 +269,7 @@ class Agent:
         t0 = time.time()   
         k = 50 # number of tweets to search through
         prev_actions = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'") 
-        prev_reflections = list_to_string(self._memory_db.get_reflections())
+        prev_reflections = list_to_string(self._memory_db.get_reflections(10))
         
         prompt = self._description + "".join(prev_actions) + prev_reflections
         
