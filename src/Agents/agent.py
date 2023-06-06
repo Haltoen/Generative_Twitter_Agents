@@ -131,7 +131,7 @@ class Agent:
             text_embedding = create_embedding_bytes(text) 
             tuple = (text, text_embedding, self._name, 0, 0, date)
             self._twitter_db.insert_tweet(tuple)
-            print(f"Tweet match found and succesfully inserted, {tuple} ")
+            print(f"Tweet match found and succesfully inserted {(text,self._name, 0, 0, date)}")
         if match2:
             text = match2.group(1)
             text_embedding = create_embedding_bytes(text) 
