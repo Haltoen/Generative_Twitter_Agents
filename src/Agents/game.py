@@ -28,9 +28,8 @@ class Agent_Manager:
             feed = current_agent.recommend_feed()
             current_agent.view_feed(feed)
             self.current_agent_index = (self.current_agent_index + 1) % len(self.agents)
-            time.sleep(1)  # Wait for 1 second before the next iteration
 
-    def pause(self):
+    async def pause(self):
         self._paused = True
 
     def unpause(self):
@@ -49,6 +48,23 @@ class Agent_Manager:
 
     def collect_agents(self):
         return [agent.to_dict() for agent in self.agents]
+    
+    def get_agent_memory(self, agent_name: str):
+        for agent in self.agents:
+            if agent._name == agent_name:
+                raw_reflections = agent._memory_db.get_reflections()
+                reflections = [
+                    {
+                        "type":reflection[0],
+                        "content": reflection[1][0],
+                        "tags": reflection[1][1]
+                    } 
+                    for reflection in raw_reflections
+                    
+                    ]
+                return reflections
+                
+
         
     
 

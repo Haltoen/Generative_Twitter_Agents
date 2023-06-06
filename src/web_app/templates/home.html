@@ -22,7 +22,7 @@
 {% endblock searchbar %}
 
 {% block sidebar %}
-<div class="col-md-4">
+  <div class="col-md-4">
     <div class="content-section">
       <h3>Agent Control Panel</h3>
       <p class="text-muted">Status: {{ status }}</p>
@@ -34,7 +34,7 @@
         {% if agents %}
           {% for agent in agents %}
             <li class="list-group-item list-group-item-light">
-                <span class="agent-name" style="color: blue; text-decoration: underline;">{{ agent.name }}</span>
+              <a href="{{ url_for('agent_details', agent_name=agent.name) }}" class="agent-name" style="color: blue; text-decoration: underline;">{{ agent.name }}</a>
               <p class="tweet-content">{{ agent.description }}</p>
             </li>
           {% endfor %}

@@ -1,0 +1,22 @@
+{% extends  "layout.html" %}
+
+{% block content %}
+    <h1>{{title}}</h1>
+
+    <ul class="list-group"></ul>
+        {% if  reflections %} 
+            {% for reflection in reflections %}
+            <li class="list-group-item list-group-item-light">
+                <a class="mr-2" href="#"> {{ reflection.type }}</a>
+                <small class="text-muted">{{ reflection.tags }}</small>
+                <p class="tweet-content">{{ reflection.content }}</p>
+            </li>
+            {% endfor %}
+        {% else %}
+            <li class="list-group-item list-group-item-light">
+                <span class="agent-name">Agent has no reflection</span>
+            </li>
+        {% endif %}
+    <ul class="list-group"></ul>
+
+{% endblock content %}

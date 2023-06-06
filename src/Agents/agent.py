@@ -272,28 +272,32 @@ class Agent:
     @profile
     def recommend_feed(self): 
         '''creates customized feed for agent based on who they follow, similarity search, and time'''
-        t0 = time.time()   
+        t0 = time.time()
         k = 50 # number of tweets to search through
-        prev_actions = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'") 
-        prev_reflections = list_to_string(self._memory_db.get_reflections(10))
-        
-        prompt = self._description + "".join(prev_actions) + prev_reflections
-        
+        out = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'") 
+
+        prev_actions = [("Your previous tweet", tweet) for tweet in out]
+
+        reflections = self._memory_db.get_reflections(10)
+        prev_reflections = list_to_string(reflections)
+
+        prompt = self._description + list_to_string(prev_actions) + prev_reflections
+
         #stupid check
         prompt_len = token_count(prompt)
         if prompt_len > 4000:
             prompt = " ".join(prompt.split()[:4000/2]) # 2 tokens per word
                 
-        query_emb = create_embedding_nparray(self._description + "".join(prev_actions) + prev_reflections) # might not be scalable
+        query_emb = create_embedding_nparray(self._description + list_to_string(prev_actions) + prev_reflections) # might not be scalable
         xq = np.array(query_emb)
                 
         tweets = self._twitter_db.similarity_search(xq, 30, False)
         upper = 100 #self._feed_share * self._context_size + 100 # 100 buffer
         total = 0     
         
-        feed = self._twitter_db.get_feed(15)
+        feed = self._twitter_db.get_feed(100)
         random.shuffle(feed)
-        
+
         recommended_tweets = []      
         for x, y in zip(feed, tweets):
             if total >= upper:
@@ -306,6 +310,8 @@ class Agent:
         print("time to recommend:" ,time.time() - t0)   
         print("len of recommended tweets", len(recommended_tweets))
         print("total tokens in recommended tweets", sum([token_count(tweet[1][0]) for tweet in recommended_tweets]))
+
+        
              
         return recommended_tweets
         

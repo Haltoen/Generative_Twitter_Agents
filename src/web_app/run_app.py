@@ -8,7 +8,7 @@ from web_app.forms import DeployAgent_form , MakeTweet_form, SearchBar_form
 from Database.database_creator import Twitter_DB
 from utils.functions import create_embedding_bytes
 from Agents.game import Agent_Manager
-
+import threading
 def start_app (from_scratch: bool, reset: bool):
     print(from_scratch)
     app = Flask(__name__)
@@ -81,16 +81,18 @@ def start_app (from_scratch: bool, reset: bool):
 
     @app.route('/toggle_pause', methods=['POST'])
     def toggle_pause():
-        agent_manager.pause_unpause()
+        simulation = threading.Thread(target=agent_manager.pause_unpause)
+        simulation.start()
         print(agent_manager._paused)
         print("toggle pause")
         return redirect(url_for("home"))
     
     @app.route('/agents/<agent_name>')
     def agent_details(agent_name):
-        # Code to retrieve agent details based on the agent_name parameter
-        # You can pass the agent details to the template and render it
-        return render_template('agent_details.html', agent_name=agent_name)
+        print(agent_name)
+        agent_reflections=agent_manager.get_agent_memory(agent_name)
+        print("agent reflections:", agent_reflections)
+        return render_template('agent_details.html', reflections = agent_reflections, title=agent_name, )
 
     @app.route("/about")
     def about():
