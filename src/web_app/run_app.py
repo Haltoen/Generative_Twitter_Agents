@@ -15,7 +15,7 @@ def start_app (from_scratch: bool, reset: bool):
     app.config['SECRET_KEY'] = "very_secret_key"
 
     twitter_db = Twitter_DB(from_scratch, reset)
-    agent_manager = Agent_Manager()
+    agent_manager = Agent_Manager(twitter_db)
 
     user_search_size = 20
 
@@ -65,26 +65,32 @@ def start_app (from_scratch: bool, reset: bool):
 
     @app.route("/", methods=["GET", "POST"])
     def home():
-        status = 'Paused' if agent_manager.status else 'Running'
-        pause_unpause = 'Unpause' if agent_manager.status else 'Pause'
-        print(status)
-        print(pause_unpause)
+        status = 'Paused' if agent_manager._paused else 'Running'
+        pause_unpause = 'Unpause' if agent_manager._paused else 'Pause'
+        agents = agent_manager.collect_agents()
+        feed=fetch_feed()
+        
         if request.method == "POST":
             search = request.form.get("search")
             if search == "":
                 flash('most recent')
-                return render_template("home.html", feed=fetch_feed())
             else:
                 flash(f'Search results for: {search}')
-                return render_template("home.html", feed=search_feed(search))
-        return render_template("home.html", feed=fetch_feed(), status=status, pause_unpause=pause_unpause)
+                feed=search_feed(search)
+        return render_template("home.html", feed=feed, agents=agents, status=status, pause_unpause=pause_unpause)
 
     @app.route('/toggle_pause', methods=['POST'])
     def toggle_pause():
         agent_manager.pause_unpause()
+        print(agent_manager._paused)
         print("toggle pause")
         return redirect(url_for("home"))
-
+    
+    @app.route('/agents/<agent_name>')
+    def agent_details(agent_name):
+        # Code to retrieve agent details based on the agent_name parameter
+        # You can pass the agent details to the template and render it
+        return render_template('agent_details.html', agent_name=agent_name)
 
     @app.route("/about")
     def about():
@@ -95,6 +101,8 @@ def start_app (from_scratch: bool, reset: bool):
         form = DeployAgent_form()
         if form.validate_on_submit():
             name = form.name.data
+            description = form.description.data
+            agent_manager.add_agent(name, description)
             flash(f'deployed agent: {name}!', "succes")
             return redirect(url_for("home"))
         return render_template("deploy.html", title="deploy agent", form = form)
@@ -108,7 +116,7 @@ def start_app (from_scratch: bool, reset: bool):
             like_count = 0
             retweet_count = 0
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            twitter_db.insert_tweet((content, embed(content), name, like_count, retweet_count, date)) #inset into database, needs embeddings.
+            twitter_db.insert_tweet((content, embed([content]), name, like_count, retweet_count, date)) #inset into database, needs embeddings.
             flash("Tweet sent", "success")
             return redirect(url_for("home"))
         return render_template("tweet.html", title="Make Tweet", form = form)

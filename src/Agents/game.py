@@ -1,8 +1,8 @@
 from typing import List, Tuple
 import time 
+import asyncio
 import sys
 from pathlib import Path
-
 
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
@@ -13,13 +13,15 @@ from utils.functions import embed, create_embedding_bytes, profile
 
 import time
 class Agent_Manager:
-    def __init__(self) -> None:
+    def __init__(self, twitter_db) -> None:
+        print("initialize agent manager")
         self.agents = []
         self.current_agent_index = 0
-        self.paused = True
-
-    def run(self):
-        while not self.paused:
+        self._paused = True
+        self._twitter_db = twitter_db
+        
+    async def run(self):
+        while not self._paused and self.agents:
             current_agent = self.agents[self.current_agent_index]
             feed = current_agent.recommend_feed()
             current_agent.view_feed(feed)
@@ -27,23 +29,24 @@ class Agent_Manager:
             time.sleep(1)  # Wait for 1 second before the next iteration
 
     def pause(self):
-        self.paused = True
+        self._paused = True
 
     def unpause(self):
-        if self.agents:
-            self.paused = False
-            self.run()
+        self._paused = False
+        self.run()
 
     def pause_unpause(self):
-        if self.paused is True:
-            self.paused = False
+        if self._paused is True:
+            self.unpause()
         else:
-            self.paused = True
-        
-    def status(self)-> bool:
-        return self.paused
+            self.pause()
 
-    
-    def add_agent(self, agent:Agent):
+    def add_agent(self, name, description) -> None:
+        agent = Agent(name, description, 100, self._twitter_db)
         self.agents.append(agent)
+
+    def collect_agents(self):
+        return [agent.to_dict() for agent in self.agents]
+
+
         

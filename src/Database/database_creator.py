@@ -98,7 +98,7 @@ class Twitter_DB(DB):
 
         if not os.path.exists(self._base_path):
             print("building base twitter db")
-            self._csv_path = 'src\Database\large_embedded_dataset.csv'
+            self._csv_path = 'src\Database\mini_embedded_dataset.csv'
             self.twitter_csv_to_db() 
         
         if self._from_scratch is False:
@@ -124,7 +124,7 @@ class Twitter_DB(DB):
         print(f"CSV data has been imported into in to '{self._db_path}'.")      
 
                     
-    @profile#should not be called by user
+    @profile #should not be called by user
     def build_tables(self, db: DB):
         '''building tables for twitter db'''
         if not db.table_exists("Tweet"):     
@@ -308,7 +308,6 @@ class Twitter_DB(DB):
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
 
-        
         tweets = self.query("SELECT id, content_embedding FROM Tweet")
         tweet_embeddings = [convert_bytes_to_nparray(embedding) for _ , embedding in tweets]   
         tweet_ids = [id for id, _ in tweets]
@@ -359,7 +358,7 @@ class Twitter_DB(DB):
                 WHERE id IN ({id[0]})
                 """
                 tweet = self.query(query)
-                tweets.append(('Tweet', tweet))
+                tweets.append(('Tweet', tweet[0]))
 
             return tweets
            
