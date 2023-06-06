@@ -43,9 +43,16 @@ class Agent_Manager:
             self.paused = True
         
     def status(self)-> bool:
-        return self.paused
-
+        return self.pause
     
     def add_agent(self, agent:Agent):
         self.agents.append(agent)
+
+from utils.functions import embed
+import numpy as np
         
+agent = Agent("test", "test", 100, False)
+xq = embed(["Donald trump"])# this is the latency bottleneck
+xq = np.array([xq.embeddings[0]]) 
+out = agent._twitter_db.similarity_search(xq, 10, True)
+print(out)

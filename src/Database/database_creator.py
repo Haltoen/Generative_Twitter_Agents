@@ -321,7 +321,7 @@ class Twitter_DB(DB):
         return lst
     
     @profile
-    def similarity_search(self, xq, n_samples, retrain = False):        
+    def similarity_search(self, xq: np.array, n_samples: int, with_dist : bool , retrain = False) -> list:        
         k = n_samples # number of tweets to search through
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
@@ -332,13 +332,12 @@ class Twitter_DB(DB):
         embeddings = np.array(tweet_embeddings)
         try:
             wb = np.stack(embeddings)
-        except:
-            print('need at least one array to stack')
+        except ValueError as e:
+            print('database is empty not search can be performed:', e)
             return []
             
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
-        
        
         if retrain or not os.path.exists('src\Database\Trained.index'): # if model already trained
             print("training indexer")
@@ -352,17 +351,16 @@ class Twitter_DB(DB):
 
         self._index.add(wb)
         self._index.nprobe = 4
-        try:
-            D, I = self._index.search(xq, k) # distance, index
-            recommended_tweet_ids = [tweet_ids[i] for i in I[0]] 
-        except Exception as e: # FIND MORE SPECIFIC EXCEPTION, THE ONE FAISS THROWS WHEN ITS INPUT IS EMPTY
-            print(e)
-            return []          
-            
         
+        D, I = self._index.search(xq, k) # distance, index
+        recommended_tweet_ids = [tweet_ids[i] for i in I[0]]        
         tweets = self.query(f"SELECT content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
-        return tweets
         
+        if with_dist:
+            distances = [dist for dist in D[0]]
+            return list(zip(distances, tweets))
+        else:                
+            return tweets        
     
     @profile 
     def search_db(self, search: str, n_samples: int) -> List[Tuple]: # CHNAGE FUNCTION SEARCH IN HASHTAG TABLE INSTEAD!!
@@ -402,9 +400,9 @@ class Twitter_DB(DB):
             return [('Tweet', tweet) for tweet in out]
                     
         else:   
-            xq = embed([search])
-            xq = np.array([xq.embeddings[0]])  # this is the latency bottleneck
-            out = self.similarity_search(xq, n_samples)
+            xq = embed([search])# this is the latency bottleneck
+            xq = np.array([xq.embeddings[0]])  
+            out = self.similarity_search(xq, n_samples, with_dist = False)
             return [('Tweet', tweet) for tweet in out]
             
             
