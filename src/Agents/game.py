@@ -1,6 +1,4 @@
-from typing import List, Tuple
-import time 
-import asyncio
+
 import sys
 from pathlib import Path
 
@@ -9,11 +7,8 @@ sys.path.append(str(parent_dir))
 print(parent_dir)
 
 from Agents.agent import Agent
-from Database.database_creator import DB, Twitter_DB
-from utils.functions import find_hashtags
-import sqlite3
 
-import time
+
 class Agent_Manager:
     def __init__(self, twitter_db) -> None:
         print("initialize agent manager")

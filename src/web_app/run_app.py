@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 parent_dir = Path(__file__).parent.parent.resolve() # src
 sys.path.append(str(parent_dir))
-from web_app.forms import DeployAgent_form , MakeTweet_form, SearchBar_form
+from web_app.forms import DeployAgent_form , MakeTweet_form
 from Database.database_creator import Twitter_DB
 from utils.functions import create_embedding_bytes
 from Agents.game import Agent_Manager
