@@ -275,12 +275,16 @@ class Twitter_DB(DB):
         INSERT INTO Tweet (content,content_embedding, username, like_count, retweet_count, date)
         VALUES (?, ?, ?, ?, ?, ?);
         """
-        self.query(query, tuple)        
-
+        self.query(query, tuple)
+ 
+        query = """
+        SELECT MAX(id) AS max_id FROM Tweet
+        """
+ 
         hashtags = find_hashtags(tuple[0]) # content is first elm of tuple
         latest_tweet_id = self.query(query)[0][0]  # returns a list of tuples, we want the first element of the first tuple            
         for hashtag in hashtags:
-            self.insert_hashtag((latest_tweet_id, hashtag))
+            self.insert_hashtag((latest_tweet_id, hashtag)) # latesttweet_id is the id of the tweet we just inserted
 
     @profile    
     def increment_like_count(self, id):

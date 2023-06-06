@@ -48,3 +48,12 @@ class Agent_Manager:
     def add_agent(self, agent:Agent):
         self.agents.append(agent)
 
+agent = Agent("test", "test", False)
+
+from utils.functions import create_embedding_bytes
+
+#content,content_embedding, username, like_count, retweet_count, date
+cont = "hello #world"
+emb = create_embedding_bytes(cont)
+tuple = (cont, emb, "bom" , 1, 0, "2021-01-01")
+agent._twitter_db.insert_tweet(tuple)
