@@ -6,7 +6,7 @@ parent_dir = Path(__file__).parent.parent.resolve() # src
 sys.path.append(str(parent_dir))
 from web_app.forms import DeployAgent_form , MakeTweet_form, SearchBar_form
 from Database.database_creator import Twitter_DB
-from utils.functions import embed
+from utils.functions import create_embedding_bytes
 from Agents.game import Agent_Manager
 
 def start_app (from_scratch: bool, reset: bool):
@@ -116,7 +116,8 @@ def start_app (from_scratch: bool, reset: bool):
             like_count = 0
             retweet_count = 0
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            twitter_db.insert_tweet((content, embed([content]), name, like_count, retweet_count, date)) #inset into database, needs embeddings.
+            Tuple = (content, create_embedding_bytes(content), name, like_count, retweet_count, date)
+            twitter_db.insert_tweet(Tuple) #inset into database, needs embeddings.
             flash("Tweet sent", "success")
             return redirect(url_for("home"))
         return render_template("tweet.html", title="Make Tweet", form = form)

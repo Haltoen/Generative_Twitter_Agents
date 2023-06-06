@@ -105,19 +105,26 @@ class Memory(DB):
                 raise Exception("Invalid table name")
          
     @profile            
-    def get_memory_reflections_tweets(self) -> str:    
+    def get_memory_reflections_tweets(self, number = None) -> list:    
         '''returns the memory of the agent as a string everything except the embedding'''
-        reflections = self.query("SELECT Reflection, Keywords FROM Reflections")
-        subtweet = self.query("SELECT content, username, like_count, retweet_count, date FROM Memory_Subtweet") # every column in agent memory
-        tweet = self.query("SELECT content, username, like_count, retweet_count, date FROM Memory_Tweet") # every column in agent memory
-        
-        text = list_to_string(self.merge_memory_stream(subtweet, tweet, reflections))
-        return text
     
+        limit = "" if number is None else f"LIMIT {number}"
+        
+        reflections = self.query(f"SELECT Reflection, Keywords FROM Reflections ORDER BY id DESC {limit}")
+        subtweet = self.query(f"SELECT content, username, like_count, retweet_count, date FROM Memory_Subtweet ORDER BY id DESC {limit}") 
+        tweet = self.query(f"SELECT content, username, like_count, retweet_count, date FROM Memory_Tweet ORDER BY id DESC {limit}") 
+
+        text = self.merge_memory_stream(subtweet, tweet, reflections)[:number]
+        return text
+        
     @profile
-    def get_reflections(self) -> str:
+    def get_reflections(self, number = None) -> list:
         '''returns the reflections of the agent as a string'''
-        reflections = self.query("SELECT Reflection, Keywords FROM Reflections")
+       
+        limit = "" if number is None else f"LIMIT {number}"
+        
+        reflections = self.query(f"SELECT Reflection, Keywords FROM Reflections ORDER BY id DESC {limit}")
+            
         text = [('Reflection', reflection) for reflection in reflections]
         return text
     

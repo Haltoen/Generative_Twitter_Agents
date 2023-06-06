@@ -13,7 +13,7 @@ from typing import List, Tuple
 from utils.functions import  profile, convert_bytes_to_nparray, embed, process_dataframe, find_hashtags
 import faiss
 import numpy as np
-import random 
+
 class DB:
     def __init__(self, name, db_path):
         self._name = name
@@ -68,6 +68,16 @@ class DB:
         conn.close()
         return result
     
+    def executemany(self, query, params_list):
+        '''Used for executing many queries at once'''
+        conn = sqlite3.connect(self._db_path)
+        cursor = conn.cursor()
+
+        cursor.executemany(query, params_list)
+
+        conn.commit()
+        conn.close()
+    
     @profile
     def table_exists(self, table_name) -> bool:
         result = self.query(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
@@ -85,7 +95,7 @@ class Twitter_DB(DB):
         self._from_scratch = from_scratch
         self._reset = reset
         self._index = None
-        super().__init__(name, self._db_path)
+        super().__init__(name, self._db_path) 
 
         if self._reset is True:
             try:
@@ -106,7 +116,6 @@ class Twitter_DB(DB):
                 print("copying base db")
                 self.build_db()
                 shutil.copy2(self._base_path, self._db_path) 
-                print("testing from scratch in twitter object:" , self.query("SELECT id FROM Tweet LIMIT 10"))
         else: 
             print("building empty db from scratch")
             self._csv_path = 'src\Database\empty.csv'
@@ -117,7 +126,7 @@ class Twitter_DB(DB):
         
     @profile
     def twitter_csv_to_db(self):        
-        print(f"Building Database from {self._csv_path} csv")
+        print(f"Building Database from {self._csv_path}")
         db = DB("base_twitter_db", self._base_path)
         db.build_from_csv(self._csv_path)        
         self.build_tables(db)
@@ -148,6 +157,9 @@ class Twitter_DB(DB):
                 FROM initial_data;
                 """
                 db.query(query)
+                
+            print("Tweet table created and filled with data")
+
 
         if not db.table_exists("Subtweet"):
             query = """
@@ -161,6 +173,7 @@ class Twitter_DB(DB):
             db.query(query)
         
         if not db.table_exists("Hashtag"):
+            
             query = """
             CREATE TABLE Hashtag (
                 tweet_id INTEGER,
@@ -170,27 +183,26 @@ class Twitter_DB(DB):
             );"""    
             db.query(query)
             
+            print("first part of hashtag done")
             
             query = """
             SELECT id, content FROM Tweet;
             """
             
             out = db.query(query)
+            print("querrying from tweets", len(out))
+            
+            params_lst = []
             for id, content in out:
                 hashtags = find_hashtags(content)
                 for hashtag in hashtags:
-                    query_params = (id, hashtag)
-                    try:
-                        query = """
-                        INSERT INTO Hashtag (tweet_id, hashtag)
-                        VALUES (?, ?);
-                        """
-                        db.query(query, query_params)
-                    except sqlite3.IntegrityError:
-                        pass 
+                    params_lst.append((id, hashtag))
             
-        if not self._from_scratch:
-            db.query("DROP TABLE initial_data")
+            params_lst = list(set(params_lst)) # remove duplicates
+                        
+            db.executemany("INSERT INTO Hashtag (tweet_id, hashtag) VALUES (?, ?)", params_lst)
+                    
+            print("Hashtag table created and filled with data")
         
         if not db.table_exists("Follow"):
             query = """
@@ -203,7 +215,8 @@ class Twitter_DB(DB):
             );
             """
             db.query(query) 
-
+            print("Follow table added")
+            
         if not db.table_exists("Users"): # Users = username
             query = """
             CREATE TABLE Users (
@@ -218,6 +231,11 @@ class Twitter_DB(DB):
             FROM Tweet;
             """
             db.query(query)
+            print("Users table added")
+        
+        if not self._from_scratch:
+            db.query("DROP TABLE initial_data")
+            
 
     @profile
     def insert_hashtag(self, tuple):
@@ -303,20 +321,22 @@ class Twitter_DB(DB):
         return lst
     
     @profile
-    def similarity_search(self, xq, n_samples, retrain = False):        
+    def similarity_search(self, xq: np.array, n_samples: int, with_dist : bool , retrain = False) -> list:        
         k = n_samples # number of tweets to search through
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
-
         tweets = self.query("SELECT id, content_embedding FROM Tweet")
         tweet_embeddings = [convert_bytes_to_nparray(embedding) for _ , embedding in tweets]   
         tweet_ids = [id for id, _ in tweets]
         embeddings = np.array(tweet_embeddings)
-        wb = np.stack(embeddings)
-        
+        try:
+            wb = np.stack(embeddings)
+        except ValueError as e:
+            print('database is empty not search can be performed:', e)
+            return []
+            
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
-        
        
         if retrain or not os.path.exists('src\Database\Trained.index'): # if model already trained
             print("training indexer")
@@ -330,12 +350,16 @@ class Twitter_DB(DB):
 
         self._index.add(wb)
         self._index.nprobe = 4
-        D, I = self._index.search(xq, k)
         
-        recommended_tweet_ids = [tweet_ids[i] for i in I[0]] 
+        D, I = self._index.search(xq, k) # distance, index
+        recommended_tweet_ids = [tweet_ids[i] for i in I[0]]        
         tweets = self.query(f"SELECT content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
-        return tweets
         
+        if with_dist:
+            distances = [dist for dist in D[0]]
+            return list(zip(distances, tweets))
+        else:                
+            return tweets        
     
     @profile 
     def search_db(self, search: str, n_samples: int) -> List[Tuple]: # CHNAGE FUNCTION SEARCH IN HASHTAG TABLE INSTEAD!!
@@ -358,11 +382,10 @@ class Twitter_DB(DB):
                 WHERE id IN ({id[0]})
                 """
                 tweet = self.query(query)
-                tweets.append(('Tweet', tweet[0]))
-
+                
+                tweets.append(('Tweet', tweet))
             return tweets
            
-        
         if search.startswith("@"):
             username_to_search = search.lstrip('@')
             query = f"""
@@ -374,9 +397,9 @@ class Twitter_DB(DB):
             return [('Tweet', tweet) for tweet in out]
                     
         else:   
-            xq = embed([search])
-            xq = np.array([xq.embeddings[0]])  # this is the latency bottleneck
-            out = self.similarity_search(xq, n_samples)
+            xq = embed([search])# this is the latency bottleneck
+            xq = np.array([xq.embeddings[0]])  
+            out = self.similarity_search(xq, n_samples, with_dist = False)
             return [('Tweet', tweet) for tweet in out]
             
             

@@ -9,7 +9,9 @@ sys.path.append(str(parent_dir))
 print(parent_dir)
 
 from Agents.agent import Agent
-from utils.functions import embed, create_embedding_bytes, profile
+from Database.database_creator import DB, Twitter_DB
+from utils.functions import find_hashtags
+import sqlite3
 
 import time
 class Agent_Manager:
@@ -20,7 +22,7 @@ class Agent_Manager:
         self._paused = True
         self._twitter_db = twitter_db
         
-    async def run(self):
+    def run(self):
         while not self._paused and self.agents:
             current_agent = self.agents[self.current_agent_index]
             feed = current_agent.recommend_feed()
@@ -47,6 +49,6 @@ class Agent_Manager:
 
     def collect_agents(self):
         return [agent.to_dict() for agent in self.agents]
-
-
         
+    
+

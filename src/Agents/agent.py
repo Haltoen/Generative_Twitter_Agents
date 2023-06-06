@@ -25,7 +25,7 @@ class Agent:
         self._description = description
         self._use_openai = True # we use openai for now
         self._out_tokens = out_tokens
-        self._temperature = 0.7
+        self._temperature = 0.5
         self._db_path = self.create_agent_dir()       
         self._memory_db = Memory(self._name, self._db_path) 
         self._twitter_db = DB  # connect to database
@@ -79,6 +79,8 @@ class Agent:
         prompt = f"""{self._prompt_template} Now the task begins: {text}\n\n"""  
         #print("template size", token_count(self._prompt_template))
         #print("prompt size", token_count(prompt))
+        print("HERE IS THE PROMPT: ", prompt, "\n\n")
+        
         if self._use_openai is True:
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
@@ -109,8 +111,10 @@ class Agent:
         pattern5 = r'api_call\[Reflection\("(.+)", \[(.+)\]\)\]'
         pattern6 = r'api_call\[Follow\((.*?)\)\]'      
         
+        print("INPUT TEXT:",  self._name  , text , "\n\n")
+        
         match1 = re.search(pattern1, text)
-        match2 = re.search(pattern2, text)
+        match2 = re.search(pattern2, text)  
         match3 = re.search(pattern3, text)
         match4 = re.search(pattern4, text)
         match5 = re.search(pattern5, text)
@@ -161,37 +165,30 @@ class Agent:
             "nothing reflect on input is empty"
         else:
             memory = list_to_string(memory)
+            reflections = list_to_string(self._memory_db.get_reflections(10))
             
-            text = f""""you have the following things in memory: {memory} \n\n now you need to reflect on what you have seen and experienced,
-            what were the most interesting takeaways from the your memories, given your description?
-            You can reflect on Tweet_memory, Subtweet_memory and Reflection. Remember you add a reflection to your memory like this: api_call[Reflection("text..”, [keywords, .,..])] \n\n"""
-            if (1-self._instruction_share)*self._context_size  > token_count(text) : # 1 token per prompt
+            text = f""""here are your 10 latest memories and reflections: {reflections} you have just viewed the following things on twitter: {memory} \n\n now you will reflect on what you have seen and experienced
+            and make reflections in accordance with your description. You add a reflection to your memory like this: api_call[Reflection("text..”, [keywords, .,..])] \n\n"""
+            if (1-self._instruction_share)*self._context_size  > token_count(text) : 
                 self.prompt(text)
-                
-                
-    @profile
-    def get_reflection(self):
-        '''gets the reflection from the memory and returns it'''
-        print("getting reflection")
-        reflection = self._memory_db.get_reflection()
-        return reflection
                     
     @profile
     def view_feed(self, lst_feed: List[tuple]):
-        '''reacts to the feed and returns a reaction, this is a way to synthesize and compress the feed'''
-        # think about whether feed is correct or not. remember we want to add the entire feed to memory, so perhaps it should be a different format from list.
-        # feed on form either tweet: ['id', 'content', 'username', 'like_count', 'retweet_count')]
-        # or subtweet: ['id', 'content', 'username', 'like_count', 'retweet_count', 'tweet_id')]
-        
+        '''reacts to the feed and returns a reaction, this is a way to synthesize and compress the feed'''        
         feed = list_to_string(lst_feed)
         
         if token_count(feed)  > (1-self._instruction_share)*self._context_size :  # computing the number of tokens in the feed, if it is too long we return an error
             raise ValueError("Feed is too long, please shorten it")
         
         self.memory_manager()            
-        memory = self._memory_db.get_memory_reflections_tweets()
-                
-        text = f"""here are short term memories of twitter interaction: {memory} \n\n now you view your feed and react to what you have seen and experienced. Feed: {feed}. \n\n""" 
+        memory_reflections = list_to_string(self._memory_db.get_memory_reflections_tweets())
+        
+        query = f"SELECT content FROM Tweet WHERE username = '{self._name}' ORDER BY id DESC LIMIT 5"        
+        latest_tweets = self._twitter_db.query(query)
+        latest_tweets = list_to_string([("Tweet", tweet) for tweet in latest_tweets])
+        
+        text = f"""here are short term memories and reflections: {memory_reflections} \n here are your previous tweets: {latest_tweets} \\
+        now you view your feed and react to what you have seen and experienced based on a combination of previous memories, reflections in accordance with our description. Feed: {feed}. \n\n""" 
         
         # remove when safe
         #print("length of feed: ", token_count(feed))
@@ -278,7 +275,7 @@ class Agent:
         t0 = time.time()   
         k = 50 # number of tweets to search through
         prev_actions = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'") 
-        prev_reflections = list_to_string(self._memory_db.get_reflections())
+        prev_reflections = list_to_string(self._memory_db.get_reflections(10))
         
         prompt = self._description + "".join(prev_actions) + prev_reflections
         
@@ -290,9 +287,8 @@ class Agent:
         query_emb = create_embedding_nparray(self._description + "".join(prev_actions) + prev_reflections) # might not be scalable
         xq = np.array(query_emb)
                 
-        tweets = self._twitter_db.similarity_search(xq, 30)
-        
-        upper = self._feed_share * self._context_size + 100 # 100 buffer
+        tweets = self._twitter_db.similarity_search(xq, 30, False)
+        upper = 100 #self._feed_share * self._context_size + 100 # 100 buffer
         total = 0     
         
         feed = self._twitter_db.get_feed(15)
