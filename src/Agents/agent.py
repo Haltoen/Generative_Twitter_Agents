@@ -281,8 +281,7 @@ class Agent:
         query_emb = create_embedding_nparray(self._description + "".join(prev_actions) + prev_reflections) # might not be scalable
         xq = np.array(query_emb)
                 
-        tweets = self._twitter_db.similarity_search(xq, 30)
-        tweets_unpacked = [tweet for (_, tweet) in tweets]
+        tweets = self._twitter_db.similarity_search(xq, 30, False)
         upper = 100 #self._feed_share * self._context_size + 100 # 100 buffer
         total = 0     
         
