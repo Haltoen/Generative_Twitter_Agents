@@ -1,5 +1,5 @@
 
-
+import asyncio
 import sys
 from pathlib import Path
 
@@ -25,16 +25,17 @@ class Agent_Manager:
 
     async def pause(self):
         self._paused = True
+        await asyncio.sleep(0)  # Allow other tasks to run
 
-    def unpause(self):
+    async def unpause(self):
         self._paused = False
         self.run()
 
     def pause_unpause(self):
         if self._paused is True:
-            self.unpause()
+            asyncio.run(self.unpause())
         else:
-            self.pause()
+            asyncio.run(self.pause())
 
     def add_agent(self, name, description) -> None:
         agent = Agent(name, description, 100, self._twitter_db)

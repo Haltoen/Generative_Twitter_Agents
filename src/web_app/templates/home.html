@@ -48,3 +48,14 @@
     </div>
   </div>
 {% endblock sidebar %}
+
+{% block scripts %}
+  {% if running %}
+    <script>
+        // Refresh the page every 5 seconds
+        setTimeout(function() {
+            location.reload();
+        }, 3000);
+    </script>
+  {% endif %}
+{% endblock scripts %}

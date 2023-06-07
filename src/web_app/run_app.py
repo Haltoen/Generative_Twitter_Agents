@@ -17,7 +17,7 @@ def start_app (from_scratch: bool, reset: bool):
     twitter_db = Twitter_DB(from_scratch, reset)
     agent_manager = Agent_Manager(twitter_db)
 
-    user_search_size = 20
+    user_search_size = 100
 
     def get_db():
         db = getattr(g, '_database', None)
@@ -32,7 +32,7 @@ def start_app (from_scratch: bool, reset: bool):
             db.close()
 
     def fetch_feed():# most recent tweets or searched tweets
-        unfomatted_tweets = twitter_db.get_feed(20)
+        unfomatted_tweets = twitter_db.get_feed(user_search_size, False)
         # Format the fetched tweets
         latest_tweets = [
             {
@@ -62,36 +62,38 @@ def start_app (from_scratch: bool, reset: bool):
 
 
     ### ROUTES
-
+    feed=fetch_feed()
     @app.route("/", methods=["GET", "POST"])
     def home():
         status = 'Paused' if agent_manager._paused else 'Running'
         pause_unpause = 'Unpause' if agent_manager._paused else 'Pause'
+        running = not agent_manager._paused 
         agents = agent_manager.collect_agents()
-        feed=fetch_feed()
-        
+        flash_msg = 'most recent'
+        feed = fetch_feed()
         if request.method == "POST":
             search = request.form.get("search")
             if search == "":
-                flash('most recent')
+                flash_msg ='most recent'
+                feed = fetch_feed()
             else:
-                flash(f'Search results for: {search}')
-                feed=search_feed(search)
-        return render_template("home.html", feed=feed, agents=agents, status=status, pause_unpause=pause_unpause)
+                flash_msg = f'Search results for: {search}'
+                feed = search_feed(search)
+        flash(flash_msg)
+        return render_template("home.html", feed=feed, agents=agents, status=status, pause_unpause=pause_unpause, running=running)
+
 
     @app.route('/toggle_pause', methods=['POST'])
     def toggle_pause():
         simulation = threading.Thread(target=agent_manager.pause_unpause)
         simulation.start()
-        print(agent_manager._paused)
-        print("toggle pause")
         return redirect(url_for("home"))
+
     
     @app.route('/agents/<agent_name>')
     def agent_details(agent_name):
         print(agent_name)
         agent_reflections=agent_manager.get_agent_memory(agent_name)
-        print("agent reflections:", agent_reflections)
         return render_template('agent_details.html', reflections = agent_reflections, title=agent_name, )
 
     @app.route("/about")
