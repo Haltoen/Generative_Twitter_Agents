@@ -25,10 +25,12 @@ conda env update -f environment.yml --prune
 When you have finished the previus steps, make sure that your environment is active, you may run.
 conda activate DBMS
 
-To run the program stand at the root of the directory, and run
-python src\main.py
+To run the program, navigate to the root directory and execute the following command:
+- python src\main.py
 
-This will launch the application in it's default state, there are two args that you may use to run the application -fs/--from_scratch, which initiates the twitter database without a dataset. The other one is -r/--reset, which will reset the database. from scratch or from dataset (default)
+This will launch the application in its default state. There are two optional arguments you can use:
+- `-fs` or `--from_scratch`: Initiates the Twitter database without a dataset.
+- `-r` or `--reset`: Resets the database from scratch or from the dataset (default).
 
-example: from scratch and reset
-python src\main.py -fs -r
+Example of running the program from scratch and resetting the database:
+- python src\main.py -fs -r
