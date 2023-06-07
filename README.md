@@ -1,23 +1,22 @@
 # Generative_Twitter_Agents
-database/webapp project from our Databases and Information Systems at on DIKU, University of Copenhagen, March 2023
+database/webapp project from our Databases and Information Systems at on DIKU, University of Copenhagen, 2023
 ## Authers:
 ### Hans Peter Lyngsøe & Hjalti Petursson Poulsen
 
 ## Description
-This project is aimed at making a local twitter clone, where the user is able to make tweets asweel as GPT controlled twitter agents that read and write tweets.
-
+This project aims to create a local Twitter clone where users can make tweets and GPT-controlled Twitter agents can read and write tweets.
 ## Data
 
 # Setup Guide
 
 ## Environment
-To use our webapp you will need to setup your conda environment, if you don't have miniconda/anaconda installed then download it from here: https://docs.conda.io/en/main/miniconda.html
+To use our web app, you will need to set up your Conda environment. If you don't have Miniconda/Anaconda installed, download it from [here](https://docs.conda.io/en/main/miniconda.html).
 
-### To import conda ENV, use the following:
-conda env create -n DBMS --file environment.yml
+To import the Conda environment, use the following command:
+- conda env create -n DBMS --file environment.yml
 
-### If you wish to update the ENV, use the following:
-conda env update -f environment.yml --prune
+If you wish to update the environment, use the following command:
+- conda env update -f environment.yml --prune
 
 ## API keys
 
