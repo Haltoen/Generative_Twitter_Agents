@@ -1,3 +1,4 @@
+
 import sys
 from pathlib import Path
 
@@ -160,7 +161,6 @@ class Twitter_DB(DB):
                 
             print("Tweet table created and filled with data")
 
-
         if not db.table_exists("Subtweet"):
             query = """
             CREATE TABLE Subtweet (
@@ -312,12 +312,19 @@ class Twitter_DB(DB):
         """
         if tuple[0] == tuple[1]:
             raise ValueError("cannot follow yourself, the tuples ellements must be different")
-        self.query(query, tuple)   
-    
+        try:
+            self.query(query, tuple)   
+        except sqlite3.IntegrityError:
+            print("already following the user")
+            
     @profile    
-    def get_feed(self, n_samples)-> List[Tuple] : # returns a list of tuples, used by frontend
+    def get_feed(self, n_samples:int, with_ids:bool )-> List[Tuple] : # returns a list of tuples, used by frontend
+        if with_ids:
+            tweet_id = "id,"
+        else:
+            tweet_id = ""
         tweet_query = f""" 
-        SELECT content, username, like_count, retweet_count, date FROM Tweet  
+        SELECT {tweet_id} content, username, like_count, retweet_count, date FROM Tweet  
         ORDER BY id DESC
         LIMIT {n_samples};        
         """
@@ -325,7 +332,7 @@ class Twitter_DB(DB):
         return lst
     
     @profile
-    def similarity_search(self, xq: np.array, n_samples: int, with_dist : bool , retrain = False) -> list:        
+    def similarity_search(self, xq: np.array, n_samples: int, with_dist : bool , with_ids: bool , retrain = False) -> list:        
         k = n_samples # number of tweets to search through
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
@@ -356,9 +363,13 @@ class Twitter_DB(DB):
         self._index.nprobe = 4
         
         D, I = self._index.search(xq, k) # distance, index
-        recommended_tweet_ids = [tweet_ids[i] for i in I[0]]        
-        tweets = self.query(f"SELECT content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
-        
+        recommended_tweet_ids = [tweet_ids[i] for i in I[0]]
+        if with_ids: 
+            tweet_id = "id,"
+        else:
+            tweet_id = ""
+        tweets = self.query(f"SELECT {tweet_id} content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
+         
         if with_dist:
             distances = [dist for dist in D[0]]
             return list(zip(distances, tweets))
@@ -403,9 +414,12 @@ class Twitter_DB(DB):
         else:   
             xq = embed([search])# this is the latency bottleneck
             xq = np.array([xq.embeddings[0]])  
-            out = self.similarity_search(xq, n_samples, with_dist = False)
+            out = self.similarity_search(xq, n_samples, with_dist = False, with_ids = False)
             return [('Tweet', tweet) for tweet in out]
             
             
 
         
+
+
+

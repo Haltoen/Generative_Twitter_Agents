@@ -1,3 +1,4 @@
+
 from typing import List, Tuple
 from multiprocessing import Pool
 import re
@@ -12,16 +13,13 @@ import ast
 import numpy as np
 import re
 
-
 parent = pl.Path(__file__).parent  
-
 
 def process_dataframe(df):
     df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x))
     df['date'] = df['date'].apply(lambda x: get_date(x))  
     df['content'] = df['content'].apply(lambda x: str(x))
     return df
-
 
 def similarity_search_(n, embedding, indexer):
     # Perform a similarity search
@@ -55,8 +53,8 @@ def profile(func):
 def token_count(text: str) -> int:
     return len(text.split())*3    
 
-def list_to_string(inp: List[Tuple[str,str]]) -> str:
-    return "\n".join([f"{pred}{elm}" for pred,elm in inp])
+def list_to_string(inp: List[Tuple[str,tuple]]) -> str:
+    return "\n".join([f"{pred}{elm}" for pred,elm in inp]) if len(inp) > 0 else " "
     
 def convert_to_BLOB(embedding):
     out = np.array(embedding) # np array to bytes for blob data in sqlite, float 64 is the default
@@ -90,7 +88,11 @@ def create_embedding_nparray(text: str) -> np.array:
 
 def convert_bytes_to_nparray(embedding_bytes:bytes) -> np.array:
     '''Converts a byte stream to a numpy array'''
-    embedding_np = np.frombuffer(embedding_bytes, dtype=np.float64)    
+    try: 
+        embedding_np = np.frombuffer(embedding_bytes, dtype=np.float64)  
+    except TypeError as e:
+        print(e, "build db from scratch again")
+
     return embedding_np
 
 def get_date(data):

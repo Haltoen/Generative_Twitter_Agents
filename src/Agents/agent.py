@@ -15,7 +15,7 @@ parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
 from Agents.Agent_memory import Memory
 from Database.database_creator import Twitter_DB
-from utils.functions import list_to_string, create_embedding_bytes, create_embedding_nparray, convert_bytes_to_nparray, profile, token_count, find_hashtags
+from utils.functions import list_to_string, create_embedding_bytes, create_embedding_nparray, profile, token_count
 
 class Agent:
     '''the twitter agent'''
@@ -30,6 +30,7 @@ class Agent:
         self._memory_db = Memory(self._name, self._db_path) 
         self._twitter_db = DB  # connect to database
         self._index = None # similarity index
+        self._last_viewed_id = None # last viewed tweet
         
         with open("src\Agents\instructions.txt", "r", encoding="utf-8", errors="ignore") as file:
             instruction = file.read() 
@@ -79,7 +80,7 @@ class Agent:
         prompt = f"""{self._prompt_template} Now the task begins: {text}\n\n"""  
         #print("template size", token_count(self._prompt_template))
         #print("prompt size", token_count(prompt))
-        print("HERE IS THE PROMPT: ", prompt, "\n\n")
+        #print("HERE IS THE PROMPT: ", prompt, "\n\n")
         
         if self._use_openai is True:
             response = openai.ChatCompletion.create(
@@ -94,20 +95,19 @@ class Agent:
                 presence_penalty=0.0,
                 stop=["\n"],
             )
-            text = response['choices'][0]['message']['content']
+            out_text = response['choices'][0]['message']['content']
+            self.parser(out_text)
         else:
             print("not implemented yet")
-            
-        self.parser(text)
-        return text      
+        return out_text      
         
     @profile
     def parser(self, text):
         '''gets in an output of the language model and converts it into actions'''
         pattern1 = r'api_call\[Tweet\("([^"]*)"\)\]'
-        pattern2 = r"api_call\[Comment\('([^']*)',\s(\d+)\)]"
-        pattern3 = r"api_call\[Like\((\d+)\)\]"
-        pattern4 = r"api_call\[Retweet\((\d+)\)\]"
+        pattern2 = r'api_call\[Comment\(\'([^\']*)\'\)\]'
+        pattern3 = r'api_call\[Like\(\)\]'
+        pattern4 = r'api_call\[Retweet\(\)\]'
         pattern5 = r'api_call\[Reflection\("(.+)", \[(.+)\]\)\]'
         pattern6 = r'api_call\[Follow\((.*?)\)\]'      
         
@@ -135,17 +135,14 @@ class Agent:
         if match2:
             text = match2.group(1)
             text_embedding = create_embedding_bytes(text) 
-            parent_tweet_id = match2.group(2)
-            print(f"Comment match found: {text}, {parent_tweet_id}")
-            self._twitter_db.insert_subtweet((text, text_embedding, self._name, 0, 0, date) , parent_tweet_id)
+            print(f"Comment match found: {text}, {self._last_viewed_id}")
+            self._twitter_db.insert_subtweet((text, text_embedding, self._name, 0, 0, date) , self._last_viewed_id)
         if match3:
-            tweet_id = match3.group(1)
-            print(f"Like match found: {tweet_id}")
-            self._twitter_db.increment_like_count(tweet_id)
+            print(f"Like match found: {self._last_viewed_id}")
+            self._twitter_db.increment_like_count(self._last_viewed_id)
         if match4:
-            tweet_id = match4.group(1)
-            print(f"Retweet match found: {tweet_id}")
-            self._twitter_db.increment_retweet_count(tweet_id)
+            print(f"Retweet match found: {self._last_viewed_id}")
+            self._twitter_db.increment_retweet_count(self._last_viewed_id)
         if match5:
             reflection = match5.group(1)
             keywords = match5.group(2)
@@ -174,7 +171,9 @@ class Agent:
                     
     @profile
     def view_feed(self, lst_feed: List[tuple]):
-        '''reacts to the feed and returns a reaction, this is a way to synthesize and compress the feed'''        
+        '''reacts to the feed and returns a reaction, this is a way to synthesize and compress the feed'''      
+        print("what feed looks like",  lst_feed)
+          
         feed = list_to_string(lst_feed)
         
         if token_count(feed)  > (1-self._instruction_share)*self._context_size :  # computing the number of tokens in the feed, if it is too long we return an error
@@ -272,49 +271,24 @@ class Agent:
     @profile
     def recommend_feed(self): 
         '''creates customized feed for agent based on who they follow, similarity search, and time'''
-        t0 = time.time()
-        k = 50 # number of tweets to search through
+        
         out = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'") 
+        
+        prev_actions = list_to_string([("Your previous tweet", tweet) for tweet in out])
 
-        prev_actions = [("Your previous tweet", tweet) for tweet in out]
-
-        reflections = self._memory_db.get_reflections(10)
-        prev_reflections = list_to_string(reflections)
-
-        prompt = self._description + list_to_string(prev_actions) + prev_reflections
-
-        #stupid check
-        prompt_len = token_count(prompt)
-        if prompt_len > 4000:
-            prompt = " ".join(prompt.split()[:4000/2]) # 2 tokens per word
-                
-        query_emb = create_embedding_nparray(self._description + list_to_string(prev_actions) + prev_reflections) # might not be scalable
+        reflections = list_to_string(self._memory_db.get_reflections(10))
+        
+        
+        #prompt = self._description + list_to_string(prev_actions) + prev_reflections
+                    
+        query_emb = create_embedding_nparray(self._description + prev_actions + "your prevbious reflections:" + reflections) # might not be scalable
         xq = np.array(query_emb)
                 
-        tweets = self._twitter_db.similarity_search(xq, 30, False)
-        upper = 100 #self._feed_share * self._context_size + 100 # 100 buffer
-        total = 0     
-        
-        feed = self._twitter_db.get_feed(100)
-        random.shuffle(feed)
-
-        recommended_tweets = []      
-        for x, y in zip(feed, tweets):
-            if total >= upper:
-                break
-            total += token_count(x[1][0]) # tweet[0][0] is the content of the tweet
-            total += token_count(y[0]) # tweet[0] is the content of the tweet
-            recommended_tweets.append(x)
-            recommended_tweets.append(("Tweet", (y)))
-                    
-        print("time to recommend:" ,time.time() - t0)   
-        print("len of recommended tweets", len(recommended_tweets))
-        print("total tokens in recommended tweets", sum([token_count(tweet[1][0]) for tweet in recommended_tweets]))
-
-        
-             
-        return recommended_tweets
-        
-        
-    
-        
+        tweets = self._twitter_db.similarity_search(xq, 2, False, True) # 30
+        tweets = [("Tweet", tweet) for tweet in tweets] # convert to tuple
+        newest = self._twitter_db.get_feed(2, True) # 15
+        recommended = tweets+newest
+        random.shuffle(recommended)
+        self._last_viewed_id = recommended[0][1][0]
+        out = [('Tweet' ,recommended[0][1][1:])]
+        return out
