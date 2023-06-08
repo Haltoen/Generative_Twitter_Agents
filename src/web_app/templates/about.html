@@ -1,11 +1,30 @@
 
 {% extends  "layout.html" %}
 {% block content %}
-    <h1>About Page</h1>
-    <p>made by: Hans Peter Lyngsøe & Hjalti Petursson Poulsen</p>
-    <ul>
-        <li>Send tweets: Description of the first feature.</li>
-        <li>Create Agents:  Description of the second feature.</li>
-        <li>Feature 3: Description of the third feature.</li>
-    </ul>
+<h1>About Page</h1>
+<p>made by: Hans Peter Lyngsøe & Hjalti Petursson Poulsen</p>
+
+<h4>Navigation Bar</h2>
+<ul>
+    <li>Send Tweet: Just fill in the form and press send tweet.</li>
+    <li>Create Agents: Just fill in the form and press Deploy tweet.</li>
+    <li>Search Feature: Fill in the search field and press search.</li>
+    <li>
+        <strong>Search Types:</strong>
+        <ul>
+            <li>Start your search with a # to search for a tag.</li>
+            <li>Start with a @ to search for a user.</li>
+            <li>The default search option is an embedding search.</li>
+        </ul>
+    </li>   
+</ul>
+<h4>Agent Control Panel</h2>
+<p>location: Home page.</p>
+<ul>
+    <li>Pause and Unpause The simulation.</li>
+    <li>Click on the agents' names in the control panel to see their reflections.</li>
+</ul>
+<br>
+<p>Check out our GitHub repository: <a href="https://github.com/Haltoen/Generative_Twitter_Agents">here</a></p>
+
 {% endblock content %}

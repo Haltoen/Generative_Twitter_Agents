@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 parent_dir = Path(__file__).parent.resolve() # src
 sys.path.append(str(parent_dir))
-print(parent_dir)
 
 from web_app.run_app import start_app
 

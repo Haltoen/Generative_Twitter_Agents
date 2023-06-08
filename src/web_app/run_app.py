@@ -20,18 +20,6 @@ def start_app (from_scratch: bool, reset: bool):
 
     user_search_size = 100
 
-    def get_db():
-        db = getattr(g, '_database', None)
-        if db is None:
-            db = g._database = twitter_db
-        return db
-
-    @app.teardown_appcontext    
-    def close_connection(exception):
-        db = getattr(g, '_database', None)
-        if db is not None:
-            db.close()
-
     def fetch_feed():# most recent tweets or searched tweets
         unfomatted_tweets = twitter_db.get_feed(user_search_size, False, None)
         # Format the fetched tweets
@@ -72,8 +60,9 @@ def start_app (from_scratch: bool, reset: bool):
 
     @app.route('/toggle_pause', methods=['POST'])
     def toggle_pause():
-        simulation = threading.Thread(target=agent_manager.pause_unpause)
-        simulation.start()
+        if agent_manager.agents:
+            simulation = threading.Thread(target=agent_manager.pause_unpause)
+            simulation.start()
         return redirect(url_for("home"))
 
     
@@ -93,7 +82,7 @@ def start_app (from_scratch: bool, reset: bool):
             name = form.name.data
             description = form.description.data
             agent_manager.add_agent(name, description)
-            flash(f'deployed agent: {name}!', "succes")
+            flash(f'deployed agent: {name}!', "success")
             return redirect(url_for("home"))
         return render_template("deploy.html", title="deploy agent", form = form)
 
@@ -111,5 +100,5 @@ def start_app (from_scratch: bool, reset: bool):
             flash("Tweet sent", "success")
             return redirect(url_for("home"))
         return render_template("tweet.html", title="Make Tweet", form = form)
-    
-    app.run()
+      
+    app.run(debug=False)

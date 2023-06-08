@@ -9,12 +9,12 @@
             <li class="list-group-item list-group-item-light">
                 <a class="mr-2" href="#"> {{ reflection.type }}</a>
                 <small class="text-muted">{{ reflection.tags }}</small>
-                <p class="tweet-content">{{ reflection.content }}</p>
+                <p class="agent-reflections">{{ reflection.content }}</p>
             </li>
             {% endfor %}
         {% else %}
             <li class="list-group-item list-group-item-light">
-                <span class="agent-name">Agent has no reflection</span>
+                <span class="agent-reflections">Agent has no reflection</span>
             </li>
         {% endif %}
     <ul class="list-group"></ul>
