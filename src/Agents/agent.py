@@ -56,7 +56,7 @@ class Agent:
             query = f"INSERT INTO Users (user_id) VALUES ('{self._name}')"
             self._twitter_db.query(query)
         except sqlite3.IntegrityError:
-            print("user already exists")
+            return None
 
     @profile
     def create_agent_dir(self):
@@ -65,7 +65,6 @@ class Agent:
         path = Path(__file__).parent.parent.resolve() / "Memory_bank" / self._name
         if not os.path.exists(path):
             os.makedirs(path)
-            print(f"Directory '{path}' created.")
                             
         return os.path.join(path, f"{self._name}.sqlite")
             
@@ -105,7 +104,7 @@ class Agent:
         pattern5 = r'api_call\[Reflection\("(.+)", \[(.+)\]\)\]'
         pattern6 = r'api_call\[Follow\((.*?)\)\]'      
         
-        print("INPUT TEXT:",  self._name  , text , "\n\n")
+        print("Model {self._name} responded:", text , "\n\n")
         
         match1 = re.search(pattern1, text)
         match2 = re.search(pattern2, text)  
@@ -259,7 +258,6 @@ class Agent:
         try:
             self._last_viewed_id = recommended[0][1][0]
             out = [('Tweet' ,recommended[0][1][1:])]
-            print(out)
             return out
         except IndexError:
             return []

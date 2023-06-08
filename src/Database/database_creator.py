@@ -4,7 +4,6 @@ from pathlib import Path
 
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
-print("path", str(parent_dir))
 
 import shutil
 import sqlite3 
@@ -22,17 +21,13 @@ class DB:
     
     @profile        
     def build_db(self):
-        if os.path.exists(self._db_path):
-            print(f"Database '{self._name}' already exists.")
-        else:
+        if not os.path.exists(self._db_path):
             conn = sqlite3.connect(self._db_path)
             conn.close()
     
     @profile
     def build_from_csv(self, csv_path):
-        if os.path.exists(self._db_path):
-            print(f"Database '{self._name}' already exists.")
-        else:
+        if not os.path.exists(self._db_path):
             df = pd.read_csv(csv_path)          
             df = process_dataframe(df)
             conn = sqlite3.connect(self._db_path)
@@ -158,8 +153,6 @@ class Twitter_DB(DB):
                 FROM initial_data;
                 """
                 db.query(query)
-                
-            print("Tweet table created and filled with data")
 
         if not db.table_exists("Subtweet"):
             query = """
@@ -182,15 +175,12 @@ class Twitter_DB(DB):
                 FOREIGN KEY (tweet_id) REFERENCES Tweet(id)
             );"""    
             db.query(query)
-            
-            print("first part of hashtag done")
-            
+                        
             query = """
             SELECT id, content FROM Tweet;
             """
             
             out = db.query(query)
-            print("querrying from tweets", len(out))
             
             params_lst = []
             for id, content in out:
@@ -202,8 +192,6 @@ class Twitter_DB(DB):
                         
             db.executemany("INSERT INTO Hashtag (tweet_id, hashtag) VALUES (?, ?)", params_lst)
                     
-            print("Hashtag table created and filled with data")
-        
         if not db.table_exists("Follow"):
             query = """
             CREATE TABLE Follow (
@@ -215,7 +203,6 @@ class Twitter_DB(DB):
             );
             """
             db.query(query) 
-            print("Follow table added")
             
         if not db.table_exists("Users"): # Users = username
             query = """
@@ -231,7 +218,6 @@ class Twitter_DB(DB):
             FROM Tweet;
             """
             db.query(query)
-            print("Users table added")
         
         if not self._from_scratch:
             db.query("DROP TABLE initial_data")
@@ -362,13 +348,11 @@ class Twitter_DB(DB):
         nlist = 128 # number of clusters
        
         if retrain or not os.path.exists('src\Database\Trained.index'): # if model already trained
-            print("training indexer")
             quantizer = faiss.IndexFlatIP(d)
             self._index = faiss.IndexIVFFlat(quantizer, d, nlist)
             self._index.train(wb)         
             faiss.write_index(self._index, 'src\Database\Trained.index')
         else:
-            print("loading indexer")
             self._index = faiss.read_index('src\Database\Trained.index')  
 
         self._index.add(wb)
