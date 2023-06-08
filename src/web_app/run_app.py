@@ -10,7 +10,8 @@ from utils.functions import create_embedding_bytes, tweet_to_dict
 from Agents.game import Agent_Manager
 import threading
 def start_app (from_scratch: bool, reset: bool):
-    print(from_scratch)
+    print("from_scatch: ",from_scratch)
+    print("reset: ",reset)
     app = Flask(__name__)
     app.config['SECRET_KEY'] = "very_secret_key"
 
@@ -110,7 +111,5 @@ def start_app (from_scratch: bool, reset: bool):
             flash("Tweet sent", "success")
             return redirect(url_for("home"))
         return render_template("tweet.html", title="Make Tweet", form = form)
-
-    app.run(debug=True)
-
-start_app(False, True)
+    
+    app.run()

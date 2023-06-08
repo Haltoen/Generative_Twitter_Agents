@@ -104,9 +104,9 @@ class Twitter_DB(DB):
 
         if not os.path.exists(self._base_path):
             print("building base twitter db")
-            self._csv_path = 'src\Database\mini_embedded_dataset.csv'
+            self._csv_path = 'src\Database\large_embedded_dataset.csv'
             self.twitter_csv_to_db() 
-        
+
         if self._from_scratch is False:
             if not os.path.exists(self._db_path):
                 print("copying base db")
