@@ -76,36 +76,36 @@ class Agent:
     @profile
     def prompt(self, text: str)->str:    
         '''prompts the agent with the text and returns the response'''        
-        
-        prompt = f"""{self._prompt_template} Now the task begins: {text}\n\n"""  
-        #print("template size", token_count(self._prompt_template))
-        #print("prompt size", token_count(prompt))
-        #print("HERE IS THE PROMPT: ", prompt, "\n\n")
-        
-        if self._use_openai is True:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "assistant", "content": prompt}
-                ],
-                temperature=0,
-                max_tokens=self._out_tokens,
-                top_p=1,
-                frequency_penalty=0.0,
-                presence_penalty=0.0,
-                stop=["\n"],
-            )
-            out_text = response['choices'][0]['message']['content']
-            self.parser(out_text)
-        else:
-            print("not implemented yet")
-        return out_text      
+        try:
+            prompt = f"""{self._prompt_template} Now the task begins: {text}\n\n"""              
+            if self._use_openai is True:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "assistant", "content": prompt}
+                    ],
+                    temperature=0,
+                    max_tokens=self._out_tokens,
+                    top_p=1,
+                    frequency_penalty=0.0,
+                    presence_penalty=0.0,
+                    stop=["\n"],
+                )
+                out_text = response['choices'][0]['message']['content']
+                self.parser(out_text)
+            else:
+                print("not implemented yet")
+            return out_text      
+        except openai.error.RateLimitError:
+            print("rate limit error, waiting 10 seconds and trying agaian")
+            time.sleep(5)
+            self.prompt(text)
         
     @profile
     def parser(self, text):
         '''gets in an output of the language model and converts it into actions'''
         pattern1 = r'api_call\[Tweet\("([^"]*)"\)\]'
-        pattern2 = r'api_call\[Comment\(\'([^\']*)\'\)\]'
+        pattern2 = r'api_call\[Comment\("([^"]*)"\)\]'
         pattern3 = r'api_call\[Like\(\)\]'
         pattern4 = r'api_call\[Retweet\(\)\]'
         pattern5 = r'api_call\[Reflection\("(.+)", \[(.+)\]\)\]'
@@ -284,11 +284,15 @@ class Agent:
         query_emb = create_embedding_nparray(self._description + prev_actions + "your prevbious reflections:" + reflections) # might not be scalable
         xq = np.array(query_emb)
                 
-        tweets = self._twitter_db.similarity_search(xq, 2, False, True) # 30
+        tweets = self._twitter_db.similarity_search(xq, 30, False, True) # 30
         tweets = [("Tweet", tweet) for tweet in tweets] # convert to tuple
-        newest = self._twitter_db.get_feed(2, True) # 15
+        newest = self._twitter_db.get_feed(15, True) # 15
         recommended = tweets+newest
         random.shuffle(recommended)
-        self._last_viewed_id = recommended[0][1][0]
-        out = [('Tweet' ,recommended[0][1][1:])]
-        return out
+        try:
+            self._last_viewed_id = recommended[0][1][0]
+            out = [('Tweet' ,recommended[0][1][1:])]
+            return out
+        except IndexError:
+            print("index error in recommend_feed")
+            return []

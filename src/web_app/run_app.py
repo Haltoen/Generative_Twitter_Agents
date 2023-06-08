@@ -127,3 +127,4 @@ def start_app (from_scratch: bool, reset: bool):
         return render_template("tweet.html", title="Make Tweet", form = form)
 
     app.run(debug=True)
+    
