@@ -6,7 +6,7 @@ parent_dir = Path(__file__).parent.parent.resolve() # src
 sys.path.append(str(parent_dir))
 from web_app.forms import DeployAgent_form , MakeTweet_form
 from Database.database_creator import Twitter_DB
-from utils.functions import create_embedding_bytes
+from utils.functions import create_embedding_bytes, tweet_to_dict
 from Agents.game import Agent_Manager
 import threading
 def start_app (from_scratch: bool, reset: bool):
@@ -34,14 +34,7 @@ def start_app (from_scratch: bool, reset: bool):
     def fetch_feed():# most recent tweets or searched tweets
         unfomatted_tweets = twitter_db.get_feed(user_search_size, False)
         # Format the fetched tweets
-        latest_tweets = [
-            {
-                "Author": tweet[1][1], 
-                "Date": tweet[1][4], 
-                "Content": tweet[1][0]  
-            }
-            for tweet in unfomatted_tweets
-        ]
+        latest_tweets = [tweet_to_dict(tweet) for tweet in unfomatted_tweets]
         return latest_tweets
 
     def search_feed(search: str):# most recent tweets or searched tweets
@@ -50,15 +43,8 @@ def start_app (from_scratch: bool, reset: bool):
         if unfomatted_tweets is None:
             flash("Error occurred during search: you need to setup cohere.ai api key", "error")
             return [] 
-        latest_tweets = [
-            {
-                "Author": tweet[1][1], 
-                "Date": tweet[1][4], 
-                "Content": tweet[1][0]  
-            }   
-            for tweet in unfomatted_tweets
-        ]
-        return latest_tweets
+        search_tweets = [tweet_to_dict(tweet) for tweet in unfomatted_tweets]
+        return search_tweets
 
 
     ### ROUTES

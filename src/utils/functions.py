@@ -15,6 +15,17 @@ import re
 
 parent = pl.Path(__file__).parent  
 
+def tweet_to_dict(tweet: tuple)-> dict:
+    Dict = {
+            "Author": tweet[1][1], 
+            "Date": tweet[1][4], 
+            "Content": tweet[1][0],
+            "Likes": tweet[1][2],
+            "Retweets": tweet[1][3]
+        }
+    return Dict
+
+
 def process_dataframe(df):
     df['content_embedding'] = df['content_embedding'].apply(lambda x: ast.literal_eval(x))
     df['date'] = df['date'].apply(lambda x: get_date(x))  
