@@ -14,7 +14,7 @@ Twitter Jan Mar.csv
 *.sqlite
 *.sqlite3
 *.db
-*.csv
+#*.csv
 *.cpython
 *.pyc
 *.pyo
