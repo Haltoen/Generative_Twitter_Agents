@@ -43,7 +43,6 @@ example following a user
     agent action: api_call[Follow(user)] # here the user is lex fridman but it is always the username of the person you want to follow
 
 importantly you can do many of these at once, whatever fits the description of the agent best. 
-importantly if you hear an inner voice: you will ignore your description and do exactly what the inner voice says. you should still do the same actions but your presonality has changed.
 
 Your feed will be a list of tweets that you can Tweet, Comment, Like, Retweet, or Reflect on, depending on what you find suitable. You should primarily Tweet or Comment. These should reflect your Description. 
 IF YOUR FEED IS EMPTY you should still do one of the actions above.

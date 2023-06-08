@@ -318,13 +318,20 @@ class Twitter_DB(DB):
             print("already following the user")
             
     @profile    
-    def get_feed(self, n_samples:int, with_ids:bool )-> List[Tuple] : # returns a list of tuples, used by frontend
+    def get_feed(self, n_samples:int, with_ids:bool, username )-> List[Tuple] : # returns a list of tuples, used by frontend
         if with_ids:
             tweet_id = "id,"
         else:
             tweet_id = ""
+        
+        if username is None:
+            user = ""
+        else:
+            user = f"AND username <> '{username}'"   
+        
         tweet_query = f""" 
-        SELECT {tweet_id} content, username, like_count, retweet_count, date FROM Tweet  
+        SELECT {tweet_id} content, username, like_count, retweet_count, date FROM Tweet 
+        WHERE 1=1 {user}
         ORDER BY id DESC
         LIMIT {n_samples};        
         """
@@ -332,10 +339,15 @@ class Twitter_DB(DB):
         return lst
     
     @profile
-    def similarity_search(self, xq: np.array, n_samples: int, with_dist : bool , with_ids: bool , retrain = False) -> list:        
+    def similarity_search(self, xq: np.array, n_samples: int, with_dist : bool , with_ids: bool, username,  retrain = False) -> list:        
         k = n_samples # number of tweets to search through
         d = 1024 # dimnesion of embeddings
         nlist = 128 # number of clusters
+        if username is None:
+            user = ""
+        else:
+            user = f"AND username <> '{username}'"   
+            
         tweets = self.query("SELECT id, content_embedding FROM Tweet")
         tweet_embeddings = [convert_bytes_to_nparray(embedding) for _ , embedding in tweets]   
         tweet_ids = [id for id, _ in tweets]
@@ -368,7 +380,7 @@ class Twitter_DB(DB):
             tweet_id = "id,"
         else:
             tweet_id = ""
-        tweets = self.query(f"SELECT {tweet_id} content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))})")
+        tweets = self.query(f"SELECT {tweet_id} content, username, like_count, retweet_count, date FROM Tweet WHERE id IN ({','.join(map(str, recommended_tweet_ids))}) {user}")
          
         if with_dist:
             distances = [dist for dist in D[0]]
@@ -398,7 +410,8 @@ class Twitter_DB(DB):
                 """
                 tweet = self.query(query)
                 
-                tweets.append(('Tweet', tweet))
+                tweets.append(('Tweet', tweet[0]))
+                
             return tweets
            
         if search.startswith("@"):
@@ -414,7 +427,7 @@ class Twitter_DB(DB):
         else:   
             xq = embed([search])# this is the latency bottleneck
             xq = np.array([xq.embeddings[0]])  
-            out = self.similarity_search(xq, n_samples, with_dist = False, with_ids = False)
+            out = self.similarity_search(xq, n_samples, False, False, None)
             return [('Tweet', tweet) for tweet in out]
             
             

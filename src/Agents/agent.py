@@ -23,7 +23,6 @@ class Agent:
     def __init__(self, name, description, out_tokens, DB):        
         self._name = name
         self._description = description
-        self._use_openai = True # we use openai for now
         self._out_tokens = out_tokens
         self._temperature = 0.5
         self._db_path = self.create_agent_dir()       
@@ -39,12 +38,9 @@ class Agent:
         
         self._context_size = 4000 # gpt 3.5 turbo has a max context size of 4000 tokens 
         instruction_tokens = token_count(self._prompt_template)
-        print("tokens used for instructions", instruction_tokens)
         self._instruction_share = instruction_tokens / self._context_size  
         self._feed_share = (1-self._instruction_share) * 0.5 # 50% of whats left
         self._memory_share = 1-self._instruction_share-self._feed_share 
-        
-        print("instruction size", self._instruction_share, "feed size", self._feed_share, "memory size", self._memory_share)
         
         self.add_user_to_db()
     
@@ -74,28 +70,26 @@ class Agent:
         return os.path.join(path, f"{self._name}.sqlite")
             
     @profile
-    def prompt(self, text: str)->str:    
+    def prompt(self, text: str):    
         '''prompts the agent with the text and returns the response'''        
         try:
             prompt = f"""{self._prompt_template} Now the task begins: {text}\n\n"""              
-            if self._use_openai is True:
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "assistant", "content": prompt}
-                    ],
-                    temperature=0,
-                    max_tokens=self._out_tokens,
-                    top_p=1,
-                    frequency_penalty=0.0,
-                    presence_penalty=0.0,
-                    stop=["\n"],
-                )
-                out_text = response['choices'][0]['message']['content']
-                self.parser(out_text)
-            else:
-                print("not implemented yet")
-            return out_text      
+      
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "assistant", "content": prompt}
+                ],
+                temperature=0,
+                max_tokens=self._out_tokens,
+                top_p=1,
+                frequency_penalty=0.0,
+                presence_penalty=0.0,
+                stop=["\n"],
+            )
+            out_text = response['choices'][0]['message']['content']
+            self.parser(out_text)
+            
         except openai.error.RateLimitError:
             print("rate limit error, waiting 10 seconds and trying agaian")
             time.sleep(5)
@@ -131,33 +125,26 @@ class Agent:
             text_embedding = create_embedding_bytes(text) 
             tuple = (text, text_embedding, self._name, 0, 0, date)
             self._twitter_db.insert_tweet(tuple)
-            print(f"Tweet match found and succesfully inserted {(text,self._name, 0, 0, date)}")
         if match2:
             text = match2.group(1)
             text_embedding = create_embedding_bytes(text) 
-            print(f"Comment match found: {text}, {self._last_viewed_id}")
             self._twitter_db.insert_subtweet((text, text_embedding, self._name, 0, 0, date) , self._last_viewed_id)
         if match3:
-            print(f"Like match found: {self._last_viewed_id}")
             self._twitter_db.increment_like_count(self._last_viewed_id)
         if match4:
-            print(f"Retweet match found: {self._last_viewed_id}")
             self._twitter_db.increment_retweet_count(self._last_viewed_id)
         if match5:
             reflection = match5.group(1)
             keywords = match5.group(2)
             reflection_embedding = create_embedding_bytes(reflection)
-            print(f"Reflection match found: {reflection}, {keywords}")
             self._memory_db.insert_Reflection((reflection, keywords, reflection_embedding, token_count(reflection)))
         if match6:
             user = match6.group(1)
-            print(f"Follow match found: {user}")
             self._twitter_db.insert_follow((user, self._name))    
 
     @profile
     def reflect(self, memory: List):
         '''reflects on the memory and returns a reflection, this is a way to synthesize and compress the memory'''
-        print("reflecting on memory\n\n")
         if len(memory) == 0:
             "nothing reflect on input is empty"
         else:
@@ -172,7 +159,6 @@ class Agent:
     @profile
     def view_feed(self, lst_feed: List[tuple]):
         '''reacts to the feed and returns a reaction, this is a way to synthesize and compress the feed'''      
-        print("what feed looks like",  lst_feed)
           
         feed = list_to_string(lst_feed)
         
@@ -188,12 +174,7 @@ class Agent:
         
         text = f"""here are short term memories and reflections: {memory_reflections} \n here are your previous tweets: {latest_tweets} \\
         now you view your feed and react to what you have seen and experienced based on a combination of previous memories, reflections in accordance with our description. Feed: {feed}. \n\n""" 
-        
-        # remove when safe
-        #print("length of feed: ", token_count(feed))
-        #print("length of memory: ", token_count(memory)) 
-        #print(" length of prompt: ", token_count(text))
-        
+
         out = [(label, (*tuple, token_count(tuple[0]))) for label, tuple in lst_feed]
         
         self.prompt(text)
@@ -203,9 +184,7 @@ class Agent:
     @profile
     def memory_manager(self):
         '''manages the memory, if it is full it removes the oldest tweets, subtweets, and reflections to make room for new ones and maintains the memory size at some number of tokens'''        
-        
-        print("managing memory\n\n")
-        
+                
         tweet_lengths = self._memory_db.query("SELECT length FROM Memory_Tweet ORDER BY id DESC")
         subtweet_lengths = self._memory_db.query("SELECT length FROM Memory_Subtweet ORDER BY id DESC")
         reflection_lengths = self._memory_db.query("SELECT length FROM Reflections ORDER BY id DESC")
@@ -217,9 +196,6 @@ class Agent:
         memory_tokens = tweet_len + subtweet_len + reflection_len + 150 # 500 buffere
 
         upper_bound = self._context_size * self._memory_share 
-
-        print("tokens in memory", memory_tokens)
-        print("upper bound", upper_bound)
 
         if memory_tokens > upper_bound:
             print("Memory is full, removing oldest tweets, subtweets, and reflections to make room for new ones")
@@ -261,13 +237,7 @@ class Agent:
             self._memory_db.remove_rows('Reflections', reflections_to_remove)
             
             print(f"Memory manager finished removed {tweets_to_remove} tweets, {subtweets_to_remove} subtweets, {reflections_to_remove} reflections, totaling {memory_tokens-upper_bound} tokens, should be below upper bound {upper_bound} ")
-    
-    
-    @profile
-    def inner_voice(self, inp:str):
-        self.prompt(inp)
-        
-    
+                
     @profile
     def recommend_feed(self): 
         '''creates customized feed for agent based on who they follow, similarity search, and time'''
@@ -277,22 +247,19 @@ class Agent:
         prev_actions = list_to_string([("Your previous tweet", tweet) for tweet in out])
 
         reflections = list_to_string(self._memory_db.get_reflections(10))
-        
-        
-        #prompt = self._description + list_to_string(prev_actions) + prev_reflections
                     
         query_emb = create_embedding_nparray(self._description + prev_actions + "your prevbious reflections:" + reflections) # might not be scalable
         xq = np.array(query_emb)
                 
-        tweets = self._twitter_db.similarity_search(xq, 30, False, True) # 30
+        tweets = self._twitter_db.similarity_search(xq, 30, False, True, self._name) # retrieving 30 tweets
         tweets = [("Tweet", tweet) for tweet in tweets] # convert to tuple
-        newest = self._twitter_db.get_feed(15, True) # 15
+        newest = self._twitter_db.get_feed(15, True, self._name) # retrieving 30 tweet
         recommended = tweets+newest
         random.shuffle(recommended)
         try:
             self._last_viewed_id = recommended[0][1][0]
             out = [('Tweet' ,recommended[0][1][1:])]
+            print(out)
             return out
         except IndexError:
-            print("index error in recommend_feed")
             return []

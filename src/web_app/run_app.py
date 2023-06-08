@@ -32,8 +32,9 @@ def start_app (from_scratch: bool, reset: bool):
             db.close()
 
     def fetch_feed():# most recent tweets or searched tweets
-        unfomatted_tweets = twitter_db.get_feed(user_search_size, False)
+        unfomatted_tweets = twitter_db.get_feed(user_search_size, False, None)
         # Format the fetched tweets
+        print("FETCH FEED FUNCTION", unfomatted_tweets)
         latest_tweets = [
             {
                 "Author": tweet[1][1], 
@@ -42,11 +43,12 @@ def start_app (from_scratch: bool, reset: bool):
             }
             for tweet in unfomatted_tweets
         ]
+        
         return latest_tweets
 
     def search_feed(search: str):# most recent tweets or searched tweets
         unfomatted_tweets = twitter_db.search_db(search, user_search_size)
-        # Format the fetched tweets
+        print("SEARCH FEED FUNCTION", unfomatted_tweets)
         if unfomatted_tweets is None:
             flash("Error occurred during search: you need to setup cohere.ai api key", "error")
             return [] 
@@ -92,7 +94,6 @@ def start_app (from_scratch: bool, reset: bool):
     
     @app.route('/agents/<agent_name>')
     def agent_details(agent_name):
-        print(agent_name)
         agent_reflections=agent_manager.get_agent_memory(agent_name)
         return render_template('agent_details.html', reflections = agent_reflections, title=agent_name, )
 
@@ -127,4 +128,5 @@ def start_app (from_scratch: bool, reset: bool):
         return render_template("tweet.html", title="Make Tweet", form = form)
 
     app.run(debug=True)
-    
+
+start_app(False, True)
