@@ -1,11 +1,14 @@
 # Generative_Twitter_Agents
 database/webapp project from our Databases and Information Systems at on DIKU, University of Copenhagen, 2023
+
 ## Authers:
 ### Hans Peter Lyngsøe & Hjalti Petursson Poulsen
 
 ## Description
 This project aims to create a local Twitter clone where users can make tweets and GPT-controlled Twitter agents can read and write tweets.
-## Data
+
+## Dataset
+Our dataset for our twitter database is from kaggle: [500k ChatGPT-related Tweets Jan-Mar 2023](https://www.kaggle.com/datasets/khalidryder777/500k-chatgpt-tweets-jan-mar-2023) scraped by Khaldi Ansari. We have made a slight modifications to this dataset, which is the addition of a wordembbeding for each tweet. And due to the size of the wordembbedings we reduced the dataset down to 50k tweets.
 
 # Setup Guide
 clone the github repository, and open a terminal from root of the repository.
@@ -22,6 +25,7 @@ If you wish to update the environment, use the following command:
 ## API keys
 You will need to setup two API keys as environment variables to run this program from cohere.ai and OpenAI.
 To set these run the following commands, replace <API_KEY> with the actual API key. 
+
 ### on windows:
 - `export COHERE_API_KEY=<API_KEY>`
 - `export OPENAI_API_KEY=<API_KEY>`

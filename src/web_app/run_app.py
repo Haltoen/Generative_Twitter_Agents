@@ -80,10 +80,15 @@ def start_app (from_scratch: bool, reset: bool):
         form = DeployAgent_form()
         if form.validate_on_submit():
             name = form.name.data
-            description = form.description.data
-            agent_manager.add_agent(name, description)
-            flash(f'deployed agent: {name}!', "success")
-            return redirect(url_for("home"))
+            agent_names = [agent._name for agent in agent_manager.agents]
+            if name not in agent_names:
+                description = form.description.data
+                agent_manager.add_agent(name, description)
+                flash(f'deployed agent: {name}!', "success")
+                return redirect(url_for("home"))
+            else:
+                flash("Failed: agent with this name already exists")
+                return redirect(url_for("home"))
         return render_template("deploy.html", title="deploy agent", form = form)
 
     @app.route("/tweet", methods=["GET", "POST"])
