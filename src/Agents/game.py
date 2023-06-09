@@ -5,6 +5,7 @@ from pathlib import Path
 
 parent_dir = Path(__file__).parent.parent.resolve() # src\Agent
 sys.path.append(str(parent_dir))
+print(parent_dir)
 
 from Agents.agent import Agent
 class Agent_Manager:
@@ -57,10 +58,3 @@ class Agent_Manager:
                     
                     ]
                 return reflections
-  
-'''from Database.database_creator import Twitter_DB          
-db = Twitter_DB(False, False)
-agent = Agent("test", "test", 100, db)
-
-feed = agent._twitter_db.get_feed(10, False, None)
-print(feed)'''

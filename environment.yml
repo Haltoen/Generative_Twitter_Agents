@@ -12,7 +12,6 @@ dependencies:
     - faiss-cpu
     - flask
     - flask-wtf
-    - cerebrium
     - cohere
     - git-lfs  # Add Git LFS as a dependency
 

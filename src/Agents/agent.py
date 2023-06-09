@@ -34,7 +34,7 @@ class Agent:
         with open("src\Agents\instructions.txt", "r", encoding="utf-8", errors="ignore") as file:
             instruction = file.read() 
         self._prompt_template = f"""Agent: {self._name}\nDescription: {self._description} \n\n 
-        Here are your instructions {instruction} \n\n"""
+        Here are your instructions: {instruction} \n\n"""
         
         self._context_size = 4000 # gpt 3.5 turbo has a max context size of 4000 tokens 
         instruction_tokens = token_count(self._prompt_template)
@@ -193,7 +193,6 @@ class Agent:
         reflection_len = sum([length[0] for length in reflection_lengths])
         
         memory_tokens = tweet_len + subtweet_len + reflection_len + 150 # 500 buffere
-
         upper_bound = self._context_size * self._memory_share 
 
         if memory_tokens > upper_bound:
@@ -235,24 +234,22 @@ class Agent:
             self._memory_db.remove_rows('Memory_Subtweet', subtweets_to_remove)
             self._memory_db.remove_rows('Reflections', reflections_to_remove)
             
-            print(f"Memory manager finished removed {tweets_to_remove} tweets, {subtweets_to_remove} subtweets, {reflections_to_remove} reflections, totaling {memory_tokens-upper_bound} tokens, should be below upper bound {upper_bound} ")
+            print(f"Memory manager finished, removed {tweets_to_remove} tweets, {subtweets_to_remove} subtweets, {reflections_to_remove} reflections, totaling {memory_tokens-upper_bound} tokens, should be below upper bound {upper_bound} ")
                 
     @profile
     def recommend_feed(self): 
         '''creates customized feed for agent based on who they follow, similarity search, and time'''
         
         out = self._twitter_db.query(f"SELECT content FROM Tweet WHERE username = '{self._name}'") 
-        
         prev_actions = list_to_string([("Your previous tweet", tweet) for tweet in out])
-
         reflections = list_to_string(self._memory_db.get_reflections(10))
                     
         query_emb = create_embedding_nparray(self._description + prev_actions + "your prevbious reflections:" + reflections) # might not be scalable
         xq = np.array(query_emb)
                 
         tweets = self._twitter_db.similarity_search(xq, 30, False, True, self._name) # retrieving 30 tweets
-        tweets = [("Tweet", tweet) for tweet in tweets] # convert to tuple
-        newest = self._twitter_db.get_feed(15, True, self._name) # retrieving 30 tweet
+        tweets = [("Tweet", tweet) for tweet in tweets] 
+        newest = self._twitter_db.get_feed(30, True, self._name) # retrieving 30 tweet
         recommended = tweets+newest
         random.shuffle(recommended)
         try:
