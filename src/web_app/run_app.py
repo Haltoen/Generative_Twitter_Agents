@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask, render_template, url_for, flash, redirect, request 
+from flask import Flask, render_template, url_for, flash, redirect, g, request 
 import sys
 from pathlib import Path
 parent_dir = Path(__file__).parent.parent.resolve() # src
@@ -9,9 +9,9 @@ from Database.database_creator import Twitter_DB
 from utils.functions import create_embedding_bytes, tweet_to_dict
 from Agents.game import Agent_Manager
 import threading
+
 def start_app (from_scratch: bool, reset: bool):
-    print("from_scatch: ",from_scratch)
-    print("reset: ",reset)
+    print(from_scratch)
     app = Flask(__name__)
     app.config['SECRET_KEY'] = "very_secret_key"
 
@@ -19,6 +19,18 @@ def start_app (from_scratch: bool, reset: bool):
     agent_manager = Agent_Manager(twitter_db)
 
     user_search_size = 100
+
+    def get_db():
+        db = getattr(g, '_database', None)
+        if db is None:
+            db = g._database = twitter_db
+        return db
+
+    @app.teardown_appcontext    
+    def close_connection(exception):
+        db = getattr(g, '_database', None)
+        if db is not None:
+            db.close()
 
     def fetch_feed():# most recent tweets or searched tweets
         unfomatted_tweets = twitter_db.get_feed(user_search_size, False, None)
@@ -60,9 +72,8 @@ def start_app (from_scratch: bool, reset: bool):
 
     @app.route('/toggle_pause', methods=['POST'])
     def toggle_pause():
-        if agent_manager.agents:
-            simulation = threading.Thread(target=agent_manager.pause_unpause)
-            simulation.start()
+        simulation = threading.Thread(target=agent_manager.pause_unpause)
+        simulation.start()
         return redirect(url_for("home"))
 
     
@@ -105,8 +116,5 @@ def start_app (from_scratch: bool, reset: bool):
             flash("Tweet sent", "success")
             return redirect(url_for("home"))
         return render_template("tweet.html", title="Make Tweet", form = form)
-    
-    host = '127.0.0.1'  # Replace with your desired host address
-    port = 5000  # Replace with your desired port number
-    print(f"Running Flask app on http://{host}:{port}/")
-    app.run(host=host, port=port, debug=False)  
+
+    app.run(debug=True)

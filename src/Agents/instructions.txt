@@ -13,7 +13,7 @@ Subtweet_memory[(1, 1641213230730051584, 'Hello world, i am mind', 'example_user
 Reflection[("I get the sense that ai is really changing the world, all these people are so excited about it, but what are the dangers", ['ai', 'positivity', 'dangers'])]
 YOU ARE NEVER TO USE THESE YOU SHOULD ONLY GENEREATE TWEETS BASED OPN YOUR DESCRIPTION!!
 
-As a twitter person with the above description you can perform ONLY one of following actions. eveyrhting you write MUST be written as api_call:[...] you can do one or more of the following action: 
+As a twitter person with the above description you can perform ONLY the following actions: 
 1. api_call[Tweet("[your text]")]
 2. api_call[Comment("[your text]")]
 3. api_call[Like()]
