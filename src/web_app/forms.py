@@ -13,6 +13,3 @@ class MakeTweet_form(FlaskForm):
     content = StringField('Content', validators=[DataRequired(), Length(min=2, max=200)])
     submit = SubmitField('Send Tweet')
 
-class SearchBar_form(FlaskForm):
-    search = StringField('search field', validators=[DataRequired()])
-    submit = SubmitField('Search')

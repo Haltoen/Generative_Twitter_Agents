@@ -32,11 +32,13 @@ To set these run the following commands, replace <API_KEY> with the actual API k
 ### on mac:
 - `set COHERE_API_KEY=<API_KEY>`
 - `set OPENAI_API_KEY=<API_KEY>`
+
 if you are rating this project these API keys should be provided in the comment attached to the assignment!
 
 ## Run the application
 When you have finished the previus steps, make sure that your environment is active, run the following command
 - `conda activate DBMS`
+
 The first run might take a few minutes, the subsequent runs are alot faster.
 To run the program, navigate to the root directory and execute the following command:
 - `python src\main.py`

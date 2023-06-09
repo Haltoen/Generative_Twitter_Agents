@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask, render_template, url_for, flash, redirect, g, request 
+from flask import Flask, render_template, url_for, flash, redirect, request 
 import sys
 from pathlib import Path
 parent_dir = Path(__file__).parent.parent.resolve() # src
@@ -20,18 +20,6 @@ def start_app (from_scratch: bool, reset: bool):
 
     user_search_size = 100
 
-    def get_db():
-        db = getattr(g, '_database', None)
-        if db is None:
-            db = g._database = twitter_db
-        return db
-
-    @app.teardown_appcontext    
-    def close_connection(exception):
-        db = getattr(g, '_database', None)
-        if db is not None:
-            db.close()
-
     def fetch_feed():# most recent tweets or searched tweets
         unfomatted_tweets = twitter_db.get_feed(user_search_size, False, None)
         # Format the fetched tweets
@@ -46,7 +34,6 @@ def start_app (from_scratch: bool, reset: bool):
             return [] 
         search_tweets = [tweet_to_dict(tweet) for tweet in unfomatted_tweets]
         return search_tweets
-
 
     ### ROUTES
     feed=fetch_feed()
@@ -69,11 +56,11 @@ def start_app (from_scratch: bool, reset: bool):
         flash(flash_msg)
         return render_template("home.html", feed=feed, agents=agents, status=status, pause_unpause=pause_unpause, running=running)
 
-
     @app.route('/toggle_pause', methods=['POST'])
     def toggle_pause():
-        simulation = threading.Thread(target=agent_manager.pause_unpause)
-        simulation.start()
+        if agent_manager.agents:
+            simulation = threading.Thread(target=agent_manager.pause_unpause)
+            simulation.start()
         return redirect(url_for("home"))
 
     
