@@ -1,7 +1,7 @@
 # Generative_Twitter_Agents
 database/webapp project from our Databases and Information Systems at on DIKU, University of Copenhagen, 2023
 
-## Authers:
+## Authors:
 ### Hans Peter Lyngsøe & Hjalti Petursson Poulsen
 
 ## Description
