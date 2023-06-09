@@ -28,6 +28,7 @@ To set these run the following commands, replace <API_KEY> with the actual API k
 ### on mac:
 - `set COHERE_API_KEY=<API_KEY>`
 - `set OPENAI_API_KEY=<API_KEY>`
+if you are rating this project these API keys should be provided in the comment attached to the assignment!
 
 ## Run the application
 When you have finished the previus steps, make sure that your environment is active, run the following command
