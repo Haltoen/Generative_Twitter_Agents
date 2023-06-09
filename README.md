@@ -8,8 +8,9 @@ This project aims to create a local Twitter clone where users can make tweets an
 ## Data
 
 # Setup Guide
+clone the github repository, and open a terminal from root.
 
-## Environment
+## Environment Setup
 To use our web app, you will need to set up your Conda environment. If you don't have Miniconda/Anaconda installed, download it from [here](https://docs.conda.io/en/main/miniconda.html).
 
 To import the Conda environment, use the following command:
@@ -19,6 +20,14 @@ If you wish to update the environment, use the following command:
 - conda env update -f environment.yml --prune
 
 ## API keys
+You will need to setup two API keys as environment variables to run this program from cohere.ai and OpenAI.
+To set these run the following commands, replace <API_KEY> with the actual API key. 
+### on windows:
+- `export COHERE_API_KEY=<API_KEY>`
+- `export OPENAI_API_KEY=<API_KEY>`
+### on mac:
+- `set COHERE_API_KEY=<API_KEY>`
+- `set OPENAI_API_KEY=<API_KEY>`
 
 ## Run the application
 When you have finished the previus steps, make sure that your environment is active, you may run.
@@ -33,3 +42,6 @@ This will launch the application in its default state. There are two optional ar
 
 Example of running the program from scratch and resetting the database:
 - python src\main.py -fs -r
+
+## Open the webapp
+To access the web app while the program is running, enter the following URL in your browser's address bar: http://127.0.0.1:5000/

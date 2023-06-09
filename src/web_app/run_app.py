@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Flask, render_template, url_for, flash, redirect, g, request 
+from flask import Flask, render_template, url_for, flash, redirect, request 
 import sys
 from pathlib import Path
 parent_dir = Path(__file__).parent.parent.resolve() # src
@@ -100,5 +100,8 @@ def start_app (from_scratch: bool, reset: bool):
             flash("Tweet sent", "success")
             return redirect(url_for("home"))
         return render_template("tweet.html", title="Make Tweet", form = form)
-      
-    app.run(debug=False)
+    
+    host = '127.0.0.1'  # Replace with your desired host address
+    port = 5000  # Replace with your desired port number
+    print(f"Running Flask app on http://{host}:{port}/")
+    app.run(host=host, port=port, debug=False)  

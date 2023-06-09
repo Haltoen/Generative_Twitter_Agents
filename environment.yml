@@ -8,10 +8,18 @@ dependencies:
   - sqlite
   - pandas
   - openai
-  - faiss-cpu
-  - flask
-  - flask-wtf
-  - flask-sqlalchemy
-  - pip: 
+  - pip:
+    - faiss-cpu
+    - flask
+    - flask-wtf
     - cerebrium
     - cohere
+    - git-lfs  # Add Git LFS as a dependency
+
+post-link:
+  - git lfs install  # Run Git LFS installation after environment creation
+
+git:
+  lfs:
+    track:
+      - '*.csv'  # Track CSV files with Git LFS
