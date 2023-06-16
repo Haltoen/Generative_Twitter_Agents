@@ -36,17 +36,15 @@ When you have finished the previus steps,you need to build a docker image by exe
 - `docker build -t my_app .`
 
 To run the image in a container you need to execute the command:
-- `docker run -p hostPort:containerPort my_app`
+- `docker run -p hostPort:containerPort my_app -fs -r`
 
 for example
-- `docker run -p 5000:5000 my_app`
+- `docker run -p 5000:5000 my_app -fs -r`
 
 This will launch the application in its default state. There are two optional arguments you can use:
 - `-fs` or `--from_scratch`: Initiates the Twitter database without a dataset.
 - `-r` or `--reset`: Resets the database from scratch or from the dataset (default).
 
-Example of running the program from scratch and resetting the database:
-- `python src\main.py -fs -r`
 
 ## Open the webapp
 To access the web app while the program is running, enter the following URL in your browser's address bar: `http://127.0.0.1:5000/` enjoy!
