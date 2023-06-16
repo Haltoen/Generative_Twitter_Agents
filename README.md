@@ -14,13 +14,9 @@ Our dataset for our twitter database is from kaggle: [500k ChatGPT-related Tweet
 clone the github repository, and open a terminal from root of the repository.
 
 ## Environment Setup
-To use our web app, you will need to set up your Conda environment. If you don't have Miniconda/Anaconda installed, download it from [here](https://docs.conda.io/en/main/miniconda.html).
+To use our web app, you will need to have a Conda environment set up. If you don't have Miniconda/Anaconda installed, download it from [here](https://docs.conda.io/en/main/miniconda.html).
 
-To import the Conda environment, use the following command:
-- `conda env create -n DBMS --file environment.yml`
-
-If you wish to update the environment, use the following command:
-- `conda env update -f environment.yml --prune`
+You will also need to have Docker, you can download it from [here](https://www.docker.com/products/docker-desktop/)
 
 ## API keys
 You will need to setup two API keys as environment variables to run this program from cohere.ai and OpenAI.
@@ -36,12 +32,14 @@ To set these run the following commands, replace <API_KEY> with the actual API k
 if you are rating this project these API keys should be provided in the comment attached to the assignment!
 
 ## Run the application
-When you have finished the previus steps, make sure that your environment is active, run the following command
-- `conda activate DBMS`
+When you have finished the previus steps,you need to build a docker image by executing command:
+- `docker build -t my_app .`
 
-The first run might take a few minutes, the subsequent runs are alot faster.
-To run the program, navigate to the root directory and execute the following command:
-- `python src\main.py`
+To run the image in a container you need to execute the command:
+- `docker run -p hostPort:containerPort my_app`
+
+for example
+- `docker run -p 5000:5000 my_app`
 
 This will launch the application in its default state. There are two optional arguments you can use:
 - `-fs` or `--from_scratch`: Initiates the Twitter database without a dataset.
